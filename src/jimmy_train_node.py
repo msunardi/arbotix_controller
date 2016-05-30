@@ -3,6 +3,9 @@ import sys, threading
 import rospy
 from sensor_msgs.msg import JointState
 from collections import deque
+from std_msgs.msg import Float32
+from ros_pololu_servo.srv import MotorRange
+from ros_pololu_servo.msg import MotorCommand
 
 from arbotix_msgs.srv import *
 
@@ -30,6 +33,21 @@ class JimmyTrainer(threading.Thread):
         self.right_sho_roll_relax = rospy.ServiceProxy(
             '/right_sho_roll/relax', Relax)
 
+        # Ref: https://github.com/geni-lab/hri_common/blob/master/scripts/mini_head_lip_sync_node.py
+        self.motor_pub = rospy.Publisher('pololu/command', MotorCommand, queue_size=1)
+        self.motor_range_srv = rospy.ServiceProxy('pololu/motor_range', MotorRange)
+
+        # Setup motor command
+        self.left_sho_roll = MotorCommand()
+        self.left_sho_roll.joint_name = 'left_shoulder_roll_joint'
+        self.left_sho_roll.speed = 1.0
+        self.left_sho_roll.acceleration = 1.0
+
+        self.left_sho_pitch = MotorCommand()
+        self.left_sho_pitch.joint_name = 'left_shoulder_pitch_joint'
+        self.left_sho_pitch.speed = 1.0
+        self.left_sho_pitch.acceleration = 1.0
+
         threading.Thread.__init__(self)
         self.sleeper = rospy.Rate(10)
 
@@ -39,6 +57,47 @@ class JimmyTrainer(threading.Thread):
     	fubar = zip(names, position) # create pairs
     	rospy.loginfo("data: %s" % fubar)
     	# rospy.loginfo("Positions: %s" % position)
+        for joint in fubar:
+            rospy.loginfo(joint)
+            if joint[0] == 'left_sho_roll':
+                self.left_shoulder_roll(joint[1])
+            if joint[0] == 'left_sho_pitch':
+                self.left_shoulder_pitch(joint[1])
+
+    def left_shoulder_roll(self, data):
+        # jimmy range: -1.0 - 0.6 (arm: lifted - lowered)
+        # jeeves range: 0.0 - 1.0 (arm: lifted - lowered)
+        # Cap data
+        if data < -1.0: data = -1.0
+        if data > 0.6: data = 0.6
+        pos = self.translate(data, -1.0, 0.6, 0.0, 1.0)
+        self.left_sho_roll.position = pos
+        rospy.loginfo("Translated Left Sho Roll: %s -> %s" % (data, pos))
+        self.motor_pub.publish(self.left_sho_roll)
+
+    def left_shoulder_pitch(self, data):
+        # jimmy range: -2.0 - 0.0 (arm: lifted - lowered)
+        # jeeves range: 1.0 - 0.0 (arm: lifted - lowered)
+        # Cap data
+        if data < -2.0: data = -2.0
+        if data > 0.0: data = 0.0
+        pos = self.translate(data, -2.0, 0.0, 1.0, 0.0)
+        self.left_sho_pitch.position = pos
+        rospy.loginfo("Translated Left Sho Pitch: %s -> %s" % (data, pos))
+        self.motor_pub.publish(self.left_sho_pitch)
+
+    # Ref: http://stackoverflow.com/a/1969274/1019170
+    def translate(self, value, leftMin, leftMax, rightMin, rightMax):
+        # Figure out how 'wide' each range is
+        leftSpan = leftMax - leftMin
+        rightSpan = rightMax - rightMin
+
+        # Convert the left range into a 0-1 range (float)
+        valueScaled = float(value - leftMin) / float(leftSpan)
+
+        # Convert the 0-1 range into a value in the right range.
+        return rightMin + (valueScaled * rightSpan)
+
 
     def run(self):
     	rospy.wait_for_service('/head_pan_joint/relax')
