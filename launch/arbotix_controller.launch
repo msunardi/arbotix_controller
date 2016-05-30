@@ -1,0 +1,7 @@
+<launch>
+  <node name="arbotix" pkg="arbotix_python" type="arbotix_driver" output="screen">
+    <rosparam file="$(find arbotix_controller)/arbotix_config.yaml" command="load" />
+  </node>
+  <!-- main node -->
+  <node name="jimmy" pkg="arbotix_controller" type="jimmy_controller_node.py" />
+</launch>
