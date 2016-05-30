@@ -48,6 +48,16 @@ class JimmyTrainer(threading.Thread):
         self.left_sho_pitch.speed = 1.0
         self.left_sho_pitch.acceleration = 1.0
 
+        self.right_sho_roll = MotorCommand()
+        self.right_sho_roll.joint_name = 'right_shoulder_roll_joint'
+        self.right_sho_roll.speed = 1.0
+        self.right_sho_roll.acceleration = 1.0
+
+        self.right_sho_pitch = MotorCommand()
+        self.right_sho_pitch.joint_name = 'right_shoulder_pitch_joint'
+        self.right_sho_pitch.speed = 1.0
+        self.right_sho_pitch.acceleration = 1.0
+
         threading.Thread.__init__(self)
         self.sleeper = rospy.Rate(10)
 
@@ -58,11 +68,17 @@ class JimmyTrainer(threading.Thread):
     	rospy.loginfo("data: %s" % fubar)
     	# rospy.loginfo("Positions: %s" % position)
         for joint in fubar:
-            rospy.loginfo(joint)
-            if joint[0] == 'left_sho_roll':
-                self.left_shoulder_roll(joint[1])
-            if joint[0] == 'left_sho_pitch':
-                self.left_shoulder_pitch(joint[1])
+            # rospy.loginfo(joint)
+            joint_name = joint[0]
+            joint_pos = joint[1]
+            if joint_name == 'left_sho_roll':
+                self.left_shoulder_roll(joint_pos)
+            if joint_name == 'left_sho_pitch':
+                self.left_shoulder_pitch(joint_pos)
+            if joint_name == 'right_sho_roll':
+                self.right_shoulder_roll(joint_pos)
+            if joint_name == 'right_sho_pitch':
+                self.right_shoulder_pitch(joint_pos)
 
     def left_shoulder_roll(self, data):
         # jimmy range: -1.0 - 0.6 (arm: lifted - lowered)
@@ -70,7 +86,7 @@ class JimmyTrainer(threading.Thread):
         # Cap data
         if data < -1.0: data = -1.0
         if data > 0.6: data = 0.6
-        pos = self.translate(data, -1.0, 0.6, 0.0, 1.0)
+        pos = self.translate(data, 0.6, -1.0, 0.0, 1.0)
         self.left_sho_roll.position = pos
         rospy.loginfo("Translated Left Sho Roll: %s -> %s" % (data, pos))
         self.motor_pub.publish(self.left_sho_roll)
@@ -85,6 +101,28 @@ class JimmyTrainer(threading.Thread):
         self.left_sho_pitch.position = pos
         rospy.loginfo("Translated Left Sho Pitch: %s -> %s" % (data, pos))
         self.motor_pub.publish(self.left_sho_pitch)
+
+    def right_shoulder_roll(self, data):
+        # jimmy range: -1.0 - 0.6 (arm: lifted - lowered)
+        # jeeves range: 0.0 - 1.0 (arm: lifted - lowered)
+        # Cap data
+        if data < -0.5: data = -0.5
+        if data > 1.0: data = 1.0
+        pos = self.translate(data, -0.5, 1.0, 0.0, 1.0)
+        self.right_sho_roll.position = pos
+        rospy.loginfo("Translated Right Sho Roll: %s -> %s" % (data, pos))
+        self.motor_pub.publish(self.right_sho_roll)
+
+    def right_shoulder_pitch(self, data):
+        # jimmy range: -2.0 - 0.0 (arm: lifted - lowered)
+        # jeeves range: 1.0 - 0.0 (arm: lifted - lowered)
+        # Cap data
+        if data < 0.0: data = 0.0
+        if data > 2.0: data = 2.0
+        pos = self.translate(data, 0.0, 2.0, 0.0, 1.0)
+        self.right_sho_pitch.position = pos
+        rospy.loginfo("Translated Right Sho Pitch: %s -> %s" % (data, pos))
+        self.motor_pub.publish(self.right_sho_pitch)
 
     # Ref: http://stackoverflow.com/a/1969274/1019170
     def translate(self, value, leftMin, leftMax, rightMin, rightMax):
