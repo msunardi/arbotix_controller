@@ -28,6 +28,9 @@ class Poses:
                     'HEAD_PAN': None,
                     'HEAD_TILT': None
                      }
+        self.timing = {'Time': None,
+                    'PauseTime': None
+                    }
         # self.allpages = []
         
         self.extractPoses()
@@ -42,6 +45,9 @@ class Poses:
         # fbody = defaultdict(list)
         for key in self.body.keys():
             self.body[key] = self._getJointPoses(key, self.poses)
+
+        for key in self.timing.keys():
+            self.timing[key] = self._getJointPoses(key, self.poses)
         
         # return allpages
     
@@ -53,3 +59,6 @@ class Poses:
     
     def getPoses(self):
         return self.body
+
+    def getTiming(self):
+        return self.timing
