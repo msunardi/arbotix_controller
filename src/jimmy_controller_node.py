@@ -2,6 +2,11 @@
 import sys, threading
 import random as r
 import xml.etree.ElementTree as etree
+import decimal
+
+from scipy.interpolate import interp1d, lagrange
+import numpy as np
+import matplotlib.pyplot as plt
 
 import rospy
 from math import *
@@ -137,8 +142,9 @@ class JimmyController(threading.Thread):
             for joint, pub in self.joints.iteritems():
                 posex = poses[joint]
                 # rospy.loginfo("Posex[%s]: %s" % (joint, posex))
-                fposex = self.interpolate(posex, timing)
-                rospy.loginfo("fPosex[%s]: %s" % (joint, fposex))
+                # fposex = self.interpolate(posex, timing)
+                fposex = self.interpolate2(posex, timing)
+                rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
                 new_poses[joint] = fposex
                 posex_length = len(fposex)
                 # for p in fposex:
@@ -162,7 +168,7 @@ class JimmyController(threading.Thread):
                 mx = posex_length/p + 1
                 if (i % mx == 0):
                     ind = i/mx
-                    d += pause[ind]
+                    d += pause[ind] 
                 rospy.loginfo("Wait for: %s" % d)
                 while rospy.get_time() - self.then < d:                                         
                     pass
@@ -264,7 +270,38 @@ class JimmyController(threading.Thread):
         print "%s (%s)" % (fb, len(fb))
         return fb
 
+    def interpolate2(self, fubar, timing):
+        l = len(fubar)
+        x = np.linspace(0, l-1, num=l, endpoint=True)
+        y = fubar
+        # f = interp1d(x,y)
+        # f2 = interp1d(x,y, kind='cubic')
+        f2 = lagrange(x, y)
+        steps = 0
+        for t in timing['Time']:
+            steps += int(t * 8/50.0)
+
+        xnew = np.linspace(0, l-1, num=steps, endpoint=True)
+
+        fx = [self.mapp(f) for f in f2(xnew)]
+
+        # rospy.loginfo("Cubic interpolated: %s" % fx)
+        return fx
+        
+        # axes = plt.gca()
+        # axes.set_ylim([1200, 3000])
+        # # plt.plot(x,y,'o', xnew, f(xnew), '-', xnew, f2(xnew), '--', xnew, f3(xnew), 'x')
+        # # plt.plot(x,y,'o', xnew, f(xnew), '-', xnew, f2(xnew), '--', xnew, f3(xnew), '+', xnew, f4(xnew), 's')
+        # data, = plt.plot(x,y,'o', label='data')
+        # linear, = plt.plot(xnew, f(xnew), '-', label='linear')
+        # cubic, = plt.plot(xnew, f2(xnew), '--', label='cubic')
+        # lagrang, = plt.plot(xnew, f3(xnew), 'g^', label='lagrange')
+        # plt.legend([data, linear, cubic, lagrang])
+        # plt.show()
+
+
     def mapp(self, x):
+        decimal.getcontext().prec=7
         return (x - 512.0)/512.0 * 2.0       
 
 def main(args):
