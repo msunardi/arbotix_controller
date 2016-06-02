@@ -4,6 +4,7 @@ import random as r
 import xml.etree.ElementTree as etree
 
 import rospy
+from math import *
 from std_msgs.msg import Float32, Float64
 from collections import deque
 
@@ -52,7 +53,7 @@ class JimmyController(threading.Thread):
         # rospy.loginfo(self.poses.getPoses())
 
         threading.Thread.__init__(self)
-        self.sleeper = rospy.Rate(20)
+        self.sleeper = rospy.Rate(50)
         
     def run(self):
         rospy.loginfo("Setting up JimmyController ...")
@@ -69,27 +70,42 @@ class JimmyController(threading.Thread):
         # self.poses = Poses(pages[0])    # Only pick the first 'page'
         # rospy.loginfo(self.poses.getPoses())
 
-        # l = len(self.pages)
+        l = len(self.pages)
 
         flag = False
+        n = 0
+        xposes = Poses(self.pages[4]) 
+        # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
+        # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
+        poses = xposes.getPoses()
+        timing = xposes.getTiming()
+
+        rospy.loginfo("GPoses: %s" % poses)
+        rospy.loginfo("Timing: %s" % timing)
+
+        # poses_ = self.interpolate(poses, timing)
+
+        # rospy.loginfo("Poses_: %s" % poses_)
+        
 
         while not rospy.is_shutdown():
 
-            if not flag:
-                self.action = iter(self.getAction())
-                flag = True
-            else:
-                try:
-                    pub, pos = self.action.next()
-                    pub.publish(pos)
-                except StopIteration:
-                    flag = False
-                    self.action = []
-
-            # if l > 1:
-            #     n = r.randint(0, l-1)
+            # if not flag:
+            #     self.action = iter(self.getAction())
+            #     flag = True
             # else:
-            #     n = 0
+            #     try:
+            #         pose = self.action.next()
+            #         for pub, pos in pose:
+            #             pub.publish(pos)
+            #     except StopIteration:
+            #         flag = False
+            #         self.action = []
+
+            if l > 1:
+                n = r.randint(0, l-1)
+            else:
+                n = 0
             # xposes = Poses(self.pages[n]) 
             # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
             # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
@@ -105,11 +121,73 @@ class JimmyController(threading.Thread):
             #         pass
             #     self.then = rospy.get_time()
 
+            # n = n % l
+            xposes = Poses(self.pages[n]) 
+            # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
+            # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
+            poses = xposes.getPoses()
+            timing = xposes.getTiming()
+
+            # poses_ = self.interpolate(poses, timing)
+
+            # for i in range(len(poses_['R_ELBOW'])):
+            new_poses = {}
+            posex_length = 0
+
+            for joint, pub in self.joints.iteritems():
+                posex = poses[joint]
+                # rospy.loginfo("Posex[%s]: %s" % (joint, posex))
+                fposex = self.interpolate(posex, timing)
+                rospy.loginfo("fPosex[%s]: %s" % (joint, fposex))
+                new_poses[joint] = fposex
+                posex_length = len(fposex)
+                # for p in fposex:
+                #     pub.publish(Float64(p))
+
+                #     #  rospy.loginfo("----------------------%s" % rospy.get_time())
+                #     while rospy.get_time() - self.then < 0.03:                                         
+                #         pass
+                #     self.then = rospy.get_time()
+
+            p = len(timing['PauseTime'])
+            pause = [t * 0.01 for t in timing['PauseTime']]
+            rospy.loginfo("p/pause: %s/%s" % (p, pause))
+
+            for i in range(posex_length):
+                for joint, pub in self.joints.iteritems():
+                    pos = new_poses[joint][i]
+                    pub.publish(Float64(pos))
+
+                d = 0.02
+                mx = posex_length/p + 1
+                if (i % mx == 0):
+                    ind = i/mx
+                    d += pause[ind]
+                rospy.loginfo("Wait for: %s" % d)
+                while rospy.get_time() - self.then < d:                                         
+                    pass
+                self.then = rospy.get_time()
+
+                # mx = posex_length/p + 1
+                # if (i % mx == 0):
+                #     ind = i/mx
+                #     while rospy.get_time() - self.then < pause[ind] * 0.01:
+                #         pass
+                #     self.then = rospy.get_time()
+
+                # if (i != 0) and (i % p == 0):                    
+                #     ind = int(i/p)
+                #     rospy.loginfo("Pause time: %s" % pause[ind])
+                #     while rospy.get_time() - self.then < pause[ind]/1000.0:
+                #         pass
+                #     self.then = rospy.get_time()
+            # # n += 1
 
             self.sleeper.sleep() 
 
     def getAction(self):
         chosen_action = []
+        fpose = []
         if self.page_length > 1:
             n = r.randint(0, self.page_length-1)
         else:
@@ -119,15 +197,75 @@ class JimmyController(threading.Thread):
         rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
         poses = xposes.getPoses()
         timing = xposes.getTiming()
-        for i in range(len(poses['R_ELBOW'])):
+
+        poses_ = self.interpolate(poses, timing)
+
+        for i in range(len(poses_['R_ELBOW'])):
             for joint, pub in self.joints.iteritems():
-                foo = self.mapp(poses[joint][i])
-                chosen_action.append((pub, Float64(foo)))
+                foo = self.mapp(poses_[joint][i])
+                fpose.append((pub, Float64(foo)))
+            chosen_action.append(fpose)
+        # rospy.loginfo(chosen_action)
+
         return chosen_action
 
+    # def interpolate(self, action, timing):
+    #     for t in timing['Time']:    # t * 8 milliseconds, rate: 20Hz (50 ms)
+    #         tx = int(t) * 8
+    #         steps = tx/50 + 1  # tx milliseconds/50 ms
+    #         # rospy.loginfo("Timing: %s (%s ms), Steps: %s" % (t, tx, steps))
+
+    #         if steps < 1.0:
+    #             continue
+
+    #         # rospy.loginfo("Action: %s" % action)
+    #         for k, poses in action.iteritems():
+    #             l = len(poses) - 1
+    #             rospy.loginfo("XPoses: [%s] %s" % (k, poses))
+    #             rposes = []
+    #             for i in range(l):                    
+    #                 iposes = []
+    #                 p1 = int(poses[i])
+    #                 p2 = int(poses[i+1])
+    #                 rospy.loginfo("P1: %s, P2: %s" % (p1, p2))
+    #                 if p1 == p2:
+    #                     for j in range(steps):
+    #                         iposes += [p1]
+    #                 else:
+    #                     rospy.loginfo("FOOOOBAAARRRR")
+    #                     dp = p2 - p1
+    #                     dpdt = float(dp)/float(steps)
+    #                     for j in range(steps):
+    #                         iposes.append(int(p1 + j*dpdt))
+    #             rospy.loginfo("Iposes[%s]: %s" % (k, iposes))
+    #             rposes = iposes
+    #             # rospy.loginfo("rposes: %s" % rposes)
+    #             action[k] = rposes
+    #             rposes = None
+    #             # rospy.loginfo("%s: %s" % (k, action[k]))
+    #     return action
+
+    def interpolate(self, fubar, timing):
+        fb = []
+        for i in range(len(fubar)-1):
+            f1 = fubar[i]
+            f2 = fubar[i+1]
+            diff = f2 - f1
+            steps = int(timing['Time'][i+1] * 8/50.0)
+            rospy.loginfo("Duration/steps: %s/%s" % (timing['Time'][i], steps))
+            increment = float(diff)/float(steps)
+            print increment
+            fx = []
+            for j in range(steps+1):
+                fx += [self.mapp(f1 + j*increment)]
+
+            print fx
+            fb += fx
+        print "%s (%s)" % (fb, len(fb))
+        return fb
 
     def mapp(self, x):
-        return (x - 512.0)/512.0           
+        return (x - 512.0)/512.0 * 2.0       
 
 def main(args):
     rospy.init_node('jimmy_controller_node', anonymous=True)
