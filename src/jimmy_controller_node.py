@@ -48,7 +48,7 @@ class JimmyController(threading.Thread):
 
         # Load from .pagelist file
         # tree = etree.parse('/home/mathias/Downloads/WinRME/Chair-Poses.pagelist')
-        tree = etree.parse('%s/src/Chair-Poses.pagelist' % rospack.get_path('arbotix_controller'))
+        tree = etree.parse('%s/src/test-poses.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('/home/mathias/Projects/jimmy_ros/src/arbotix_controller/src/PositionSequence.pagelist')
         self.pages = tree.findall('.//PageClass')
         self.page_length = len(self.pages)
@@ -83,14 +83,14 @@ class JimmyController(threading.Thread):
 
         flag = False
         n = 0
-        xposes = Poses(self.pages[4]) 
+        # xposes = Poses(self.pages[4]) 
         # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
         # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
-        poses = xposes.getPoses()
-        timing = xposes.getTiming()
+        # poses = xposes.getPoses()
+        # timing = xposes.getTiming()
 
-        rospy.loginfo("GPoses: %s" % poses)
-        rospy.loginfo("Timing: %s" % timing)
+        # rospy.loginfo("GPoses: %s" % poses)
+        # rospy.loginfo("Timing: %s" % timing)
 
         # poses_ = self.interpolate(poses, timing)
 
