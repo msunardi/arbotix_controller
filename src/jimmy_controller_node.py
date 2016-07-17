@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import rospy
+import rospkg
 from math import *
 from std_msgs.msg import Float32, Float64
 from collections import deque
@@ -43,8 +44,11 @@ class JimmyController(threading.Thread):
             'HEAD_PAN': self.head_pan_pub,
             'HEAD_TILT': self.head_tilt_pub}
 
+        rospack = rospkg.RosPack()
+
         # Load from .pagelist file
-        tree = etree.parse('/home/mathias/Downloads/WinRME/Chair-Poses.pagelist')
+        # tree = etree.parse('/home/mathias/Downloads/WinRME/Chair-Poses.pagelist')
+        tree = etree.parse('%s/src/Chair-Poses.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('/home/mathias/Projects/jimmy_ros/src/arbotix_controller/src/PositionSequence.pagelist')
         self.pages = tree.findall('.//PageClass')
         self.page_length = len(self.pages)
