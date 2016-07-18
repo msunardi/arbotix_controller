@@ -1103,7 +1103,7 @@
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
         <Time>250</Time>
-        <PauseTime>0</PauseTime>
+        <PauseTime>300</PauseTime>
         <R_SHO_PITCH>896</R_SHO_PITCH>
         <L_SHO_PITCH>146</L_SHO_PITCH>
         <R_SHO_ROLL>476</R_SHO_ROLL>
@@ -1124,6 +1124,32 @@
         <L_ANK_ROLL>512</L_ANK_ROLL>
         <HEAD_PAN>452</HEAD_PAN>
         <HEAD_TILT>596</HEAD_TILT>
+      </PoseClass>
+      <PoseClass>
+        <PoseIndex>0</PoseIndex>
+        <PoseStep>0</PoseStep>
+        <Time>250</Time>
+        <PauseTime>0</PauseTime>
+        <R_SHO_PITCH>512</R_SHO_PITCH>
+        <L_SHO_PITCH>512</L_SHO_PITCH>
+        <R_SHO_ROLL>512</R_SHO_ROLL>
+        <L_SHO_ROLL>512</L_SHO_ROLL>
+        <R_ELBOW>512</R_ELBOW>
+        <L_ELBOW>512</L_ELBOW>
+        <R_HIP_YAW>512</R_HIP_YAW>
+        <L_HIP_YAW>512</L_HIP_YAW>
+        <R_HIP_ROLL>512</R_HIP_ROLL>
+        <L_HIP_ROLL>512</L_HIP_ROLL>
+        <R_HIP_PITCH>512</R_HIP_PITCH>
+        <L_HIP_PITCH>512</L_HIP_PITCH>
+        <R_KNEE>512</R_KNEE>
+        <L_KNEE>512</L_KNEE>
+        <R_ANK_PITCH>512</R_ANK_PITCH>
+        <L_ANK_PITCH>512</L_ANK_PITCH>
+        <R_ANK_ROLL>512</R_ANK_ROLL>
+        <L_ANK_ROLL>512</L_ANK_ROLL>
+        <HEAD_PAN>512</HEAD_PAN>
+        <HEAD_TILT>512</HEAD_TILT>
       </PoseClass>
     </Poses>
     <Title>Marie6</Title>
