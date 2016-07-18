@@ -48,7 +48,8 @@ class JimmyController(threading.Thread):
 
         # Load from .pagelist file
         # tree = etree.parse('/home/mathias/Downloads/WinRME/Chair-Poses.pagelist')
-        tree = etree.parse('%s/src/test-poses.pagelist' % rospack.get_path('arbotix_controller'))
+        # tree = etree.parse('%s/src/test-poses.pagelist' % rospack.get_path('arbotix_controller'))
+        tree = etree.parse('%s/src/pagelists/marie_curie2_edited3.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('/home/mathias/Projects/jimmy_ros/src/arbotix_controller/src/PositionSequence.pagelist')
         self.pages = tree.findall('.//PageClass')
         self.page_length = len(self.pages)
@@ -147,8 +148,9 @@ class JimmyController(threading.Thread):
                 posex = poses[joint]
                 # rospy.loginfo("Posex[%s]: %s" % (joint, posex))
                 # fposex = self.interpolate(posex, timing)
-                fposex = self.interpolate2(posex, timing)
-                rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
+                # fposex = self.interpolate2(posex, timing)
+                fposex = self.chooseInterpolate(posex, timing, 'linear')
+                # rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
                 new_poses[joint] = fposex
                 posex_length = len(fposex)
                 # for p in fposex:
@@ -163,17 +165,24 @@ class JimmyController(threading.Thread):
             pause = [t * 0.01 for t in timing['PauseTime']]
             rospy.loginfo("p/pause: %s/%s" % (p, pause))
 
+
             for i in range(posex_length):
+                mx = posex_length/p + 1
+
+                # Uncomment to move step by step
+                # if (i % mx == 0):
+                #     raw_input("Press Enter to step through...")           
+               
                 for joint, pub in self.joints.iteritems():
                     pos = new_poses[joint][i]
                     pub.publish(Float64(pos))
 
                 d = 0.02
-                mx = posex_length/p + 1
+                
                 if (i % mx == 0):
                     ind = i/mx
                     d += pause[ind] 
-                rospy.loginfo("Wait for: %s" % d)
+                rospy.loginfo("Wait for: %s (%s) " % (d, pause[ind]*100))
                 while rospy.get_time() - self.then < d:                                         
                     pass
                 self.then = rospy.get_time()
@@ -194,6 +203,15 @@ class JimmyController(threading.Thread):
             # # n += 1
 
             self.sleeper.sleep() 
+
+    def chooseInterpolate(self, posex, timing, interp='cubic'):
+        if interp == 'cubic' or interp == 'lagrange':
+            return self.interpolate2(posex, timing, interp)
+        elif interp == 'linear':
+            return self.interpolate(posex, timing)
+        else:
+            raise ValueError("Invalid interpolation type")
+
 
     def getAction(self):
         chosen_action = []
@@ -274,13 +292,17 @@ class JimmyController(threading.Thread):
         print "%s (%s)" % (fb, len(fb))
         return fb
 
-    def interpolate2(self, fubar, timing):
+    def interpolate2(self, fubar, timing, interp):
         l = len(fubar)
         x = np.linspace(0, l-1, num=l, endpoint=True)
         y = fubar
         # f = interp1d(x,y)
-        # f2 = interp1d(x,y, kind='cubic')
-        f2 = lagrange(x, y)
+        if interp == 'cubic':
+            f2 = interp1d(x,y, kind='cubic')
+        elif interp == 'lagrange':
+            f2 = lagrange(x, y)
+        else:
+            raise ValueError('Invalid interpolation type!')
         steps = 0
         for t in timing['Time']:
             steps += int(t * 8/50.0)

@@ -5,8 +5,9 @@
       <PoseClass>
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
-        <Time>63</Time>
-        <PauseTime>0</PauseTime>
+        <!-- <Time>63</Time> -->
+        <Time>850</Time>
+        <PauseTime>50</PauseTime>
         <R_SHO_PITCH>491</R_SHO_PITCH>
         <L_SHO_PITCH>533</L_SHO_PITCH>
         <R_SHO_ROLL>533</R_SHO_ROLL>
@@ -25,13 +26,14 @@
         <L_ANK_PITCH>528</L_ANK_PITCH>
         <R_ANK_ROLL>512</R_ANK_ROLL>
         <L_ANK_ROLL>513</L_ANK_ROLL>
-        <HEAD_PAN>512</HEAD_PAN>
+        <HEAD_PAN>478</HEAD_PAN>
         <HEAD_TILT>506</HEAD_TILT>
       </PoseClass>
       <PoseClass>
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
-        <Time>82</Time>
+        <!-- <Time>82</Time> -->
+        <Time>450</Time>
         <PauseTime>0</PauseTime>
         <R_SHO_PITCH>599</R_SHO_PITCH>
         <L_SHO_PITCH>425</L_SHO_PITCH>
@@ -57,7 +59,8 @@
       <PoseClass>
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
-        <Time>70</Time>
+        <Time>250</Time>
+        <!-- <Time>70</Time> -->
         <PauseTime>0</PauseTime>
         <R_SHO_PITCH>490</R_SHO_PITCH>
         <L_SHO_PITCH>534</L_SHO_PITCH>
@@ -83,7 +86,8 @@
       <PoseClass>
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
-        <Time>63</Time>
+        <!-- <Time>63</Time> -->
+        <Time>250</Time>
         <PauseTime>0</PauseTime>
         <R_SHO_PITCH>748</R_SHO_PITCH>
         <L_SHO_PITCH>276</L_SHO_PITCH>
@@ -109,7 +113,8 @@
       <PoseClass>
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
-        <Time>75</Time>
+        <!-- <Time>75</Time> -->
+        <Time>250</Time>
         <PauseTime>0</PauseTime>
         <R_SHO_PITCH>556</R_SHO_PITCH>
         <L_SHO_PITCH>468</L_SHO_PITCH>
@@ -135,7 +140,8 @@
       <PoseClass>
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
-        <Time>150</Time>
+        <!-- <Time>150</Time> -->
+        <Time>550</Time>
         <PauseTime>0</PauseTime>
         <R_SHO_PITCH>925</R_SHO_PITCH>
         <L_SHO_PITCH>100</L_SHO_PITCH>
@@ -161,8 +167,10 @@
       <PoseClass>
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
-        <Time>77</Time>
-        <PauseTime>0</PauseTime>
+        <!-- <Time>77</Time> -->
+        <Time>650</Time>
+        <!-- <PauseTime>0</PauseTime> -->
+        <PauseTime>20</PauseTime>
         <R_SHO_PITCH>512</R_SHO_PITCH>
         <L_SHO_PITCH>512</L_SHO_PITCH>
         <R_SHO_ROLL>456</R_SHO_ROLL>
@@ -181,8 +189,139 @@
         <L_ANK_PITCH>528</L_ANK_PITCH>
         <R_ANK_ROLL>512</R_ANK_ROLL>
         <L_ANK_ROLL>513</L_ANK_ROLL>
-        <HEAD_PAN>512</HEAD_PAN>
+        <!-- <HEAD_PAN>512</HEAD_PAN> -->
+        <HEAD_PAN>634</HEAD_PAN>
         <HEAD_TILT>446</HEAD_TILT>
+      </PoseClass>
+      <PoseClass>
+        <PoseIndex>0</PoseIndex>
+        <PoseStep>0</PoseStep>
+        <Time>50</Time>
+        <PauseTime>0</PauseTime>
+        <R_SHO_PITCH>512</R_SHO_PITCH>
+        <L_SHO_PITCH>512</L_SHO_PITCH>
+        <R_SHO_ROLL>512</R_SHO_ROLL>
+        <L_SHO_ROLL>512</L_SHO_ROLL>
+        <R_ELBOW>512</R_ELBOW>
+        <L_ELBOW>512</L_ELBOW>
+        <R_HIP_YAW>504</R_HIP_YAW>
+        <L_HIP_YAW>511</L_HIP_YAW>
+        <R_HIP_ROLL>503</R_HIP_ROLL>
+        <L_HIP_ROLL>522</L_HIP_ROLL>
+        <R_HIP_PITCH>228</R_HIP_PITCH>
+        <L_HIP_PITCH>798</L_HIP_PITCH>
+        <R_KNEE>236</R_KNEE>
+        <L_KNEE>778</L_KNEE>
+        <R_ANK_PITCH>502</R_ANK_PITCH>
+        <L_ANK_PITCH>528</L_ANK_PITCH>
+        <R_ANK_ROLL>512</R_ANK_ROLL>
+        <L_ANK_ROLL>513</L_ANK_ROLL>
+        <HEAD_PAN>512</HEAD_PAN>
+        <HEAD_TILT>512</HEAD_TILT>
+      </PoseClass>
+      <PoseClass>
+        <PoseIndex>0</PoseIndex>
+        <PoseStep>0</PoseStep>
+        <Time>25</Time>
+        <PauseTime>0</PauseTime>
+        <R_SHO_PITCH>540</R_SHO_PITCH>
+        <L_SHO_PITCH>484</L_SHO_PITCH>
+        <R_SHO_ROLL>540</R_SHO_ROLL>
+        <L_SHO_ROLL>484</L_SHO_ROLL>
+        <R_ELBOW>484</R_ELBOW>
+        <L_ELBOW>540</L_ELBOW>
+        <R_HIP_YAW>504</R_HIP_YAW>
+        <L_HIP_YAW>511</L_HIP_YAW>
+        <R_HIP_ROLL>503</R_HIP_ROLL>
+        <L_HIP_ROLL>522</L_HIP_ROLL>
+        <R_HIP_PITCH>228</R_HIP_PITCH>
+        <L_HIP_PITCH>798</L_HIP_PITCH>
+        <R_KNEE>236</R_KNEE>
+        <L_KNEE>778</L_KNEE>
+        <R_ANK_PITCH>502</R_ANK_PITCH>
+        <L_ANK_PITCH>528</L_ANK_PITCH>
+        <R_ANK_ROLL>512</R_ANK_ROLL>
+        <L_ANK_ROLL>513</L_ANK_ROLL>
+        <HEAD_PAN>512</HEAD_PAN>
+        <HEAD_TILT>507</HEAD_TILT>
+      </PoseClass>
+      <PoseClass>
+        <PoseIndex>0</PoseIndex>
+        <PoseStep>0</PoseStep>
+        <Time>25</Time>
+        <PauseTime>0</PauseTime>
+        <R_SHO_PITCH>602</R_SHO_PITCH>
+        <L_SHO_PITCH>422</L_SHO_PITCH>
+        <R_SHO_ROLL>602</R_SHO_ROLL>
+        <L_SHO_ROLL>422</L_SHO_ROLL>
+        <R_ELBOW>422</R_ELBOW>
+        <L_ELBOW>602</L_ELBOW>
+        <R_HIP_YAW>504</R_HIP_YAW>
+        <L_HIP_YAW>511</L_HIP_YAW>
+        <R_HIP_ROLL>503</R_HIP_ROLL>
+        <L_HIP_ROLL>522</L_HIP_ROLL>
+        <R_HIP_PITCH>228</R_HIP_PITCH>
+        <L_HIP_PITCH>798</L_HIP_PITCH>
+        <R_KNEE>236</R_KNEE>
+        <L_KNEE>778</L_KNEE>
+        <R_ANK_PITCH>502</R_ANK_PITCH>
+        <L_ANK_PITCH>528</L_ANK_PITCH>
+        <R_ANK_ROLL>512</R_ANK_ROLL>
+        <L_ANK_ROLL>513</L_ANK_ROLL>
+        <HEAD_PAN>512</HEAD_PAN>
+        <HEAD_TILT>462</HEAD_TILT>
+      </PoseClass>
+      <PoseClass>
+        <PoseIndex>0</PoseIndex>
+        <PoseStep>0</PoseStep>
+        <Time>25</Time>
+        <PauseTime>0</PauseTime>
+        <R_SHO_PITCH>668</R_SHO_PITCH>
+        <L_SHO_PITCH>356</L_SHO_PITCH>
+        <R_SHO_ROLL>668</R_SHO_ROLL>
+        <L_SHO_ROLL>356</L_SHO_ROLL>
+        <R_ELBOW>356</R_ELBOW>
+        <L_ELBOW>668</L_ELBOW>
+        <R_HIP_YAW>504</R_HIP_YAW>
+        <L_HIP_YAW>511</L_HIP_YAW>
+        <R_HIP_ROLL>503</R_HIP_ROLL>
+        <L_HIP_ROLL>522</L_HIP_ROLL>
+        <R_HIP_PITCH>228</R_HIP_PITCH>
+        <L_HIP_PITCH>798</L_HIP_PITCH>
+        <R_KNEE>236</R_KNEE>
+        <L_KNEE>778</L_KNEE>
+        <R_ANK_PITCH>502</R_ANK_PITCH>
+        <L_ANK_PITCH>528</L_ANK_PITCH>
+        <R_ANK_ROLL>512</R_ANK_ROLL>
+        <L_ANK_ROLL>513</L_ANK_ROLL>
+        <HEAD_PAN>512</HEAD_PAN>
+        <HEAD_TILT>401</HEAD_TILT>
+      </PoseClass>
+      <PoseClass>
+        <PoseIndex>0</PoseIndex>
+        <PoseStep>0</PoseStep>
+        <Time>25</Time>
+        <PauseTime>0</PauseTime>
+        <R_SHO_PITCH>740</R_SHO_PITCH>
+        <L_SHO_PITCH>284</L_SHO_PITCH>
+        <R_SHO_ROLL>714</R_SHO_ROLL>
+        <L_SHO_ROLL>316</L_SHO_ROLL>
+        <R_ELBOW>348</R_ELBOW>
+        <L_ELBOW>664</L_ELBOW>
+        <R_HIP_YAW>504</R_HIP_YAW>
+        <L_HIP_YAW>511</L_HIP_YAW>
+        <R_HIP_ROLL>503</R_HIP_ROLL>
+        <L_HIP_ROLL>522</L_HIP_ROLL>
+        <R_HIP_PITCH>228</R_HIP_PITCH>
+        <L_HIP_PITCH>798</L_HIP_PITCH>
+        <R_KNEE>236</R_KNEE>
+        <L_KNEE>778</L_KNEE>
+        <R_ANK_PITCH>502</R_ANK_PITCH>
+        <L_ANK_PITCH>528</L_ANK_PITCH>
+        <R_ANK_ROLL>512</R_ANK_ROLL>
+        <L_ANK_ROLL>513</L_ANK_ROLL>
+        <HEAD_PAN>512</HEAD_PAN>
+        <HEAD_TILT>401</HEAD_TILT>
       </PoseClass>
     </Poses>
     <Title>Conductor</Title>
