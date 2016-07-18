@@ -49,8 +49,8 @@ class JimmyController(threading.Thread):
         # Load from .pagelist file
         # tree = etree.parse('/home/mathias/Downloads/WinRME/Chair-Poses.pagelist')
         # tree = etree.parse('%s/src/pagelists/test-poses.pagelist' % rospack.get_path('arbotix_controller'))
-        # tree = etree.parse('%s/src/pagelists/Chair-Poses.pagelist' % rospack.get_path('arbotix_controller'))
-        tree = etree.parse('%s/src/pagelists/marie_curie2_edited3.pagelist' % rospack.get_path('arbotix_controller'))
+        tree = etree.parse('%s/src/pagelists/Chair-Poses.pagelist' % rospack.get_path('arbotix_controller'))
+        # tree = etree.parse('%s/src/pagelists/marie_curie2_edited4.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('/home/mathias/Projects/jimmy_ros/src/arbotix_controller/src/PositionSequence.pagelist')
         self.pages = tree.findall('.//PageClass')
         self.page_length = len(self.pages)
@@ -186,7 +186,7 @@ class JimmyController(threading.Thread):
 
                 # Uncomment to move step by step
                 # if (i % mx == 0):
-                #     raw_input("Press Enter to step through...")           
+                #     raw_input("Press Enter to step through...")       
                
                 for joint, pub in self.joints.iteritems():
                     pos = new_poses[joint][i]
