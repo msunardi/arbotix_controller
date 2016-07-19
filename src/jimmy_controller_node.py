@@ -49,8 +49,8 @@ class JimmyController(threading.Thread):
         # Load from .pagelist file
         # tree = etree.parse('/home/mathias/Downloads/WinRME/Chair-Poses.pagelist')
         # tree = etree.parse('%s/src/pagelists/test-poses.pagelist' % rospack.get_path('arbotix_controller'))
-        tree = etree.parse('%s/src/pagelists/Chair-Poses.pagelist' % rospack.get_path('arbotix_controller'))
-        # tree = etree.parse('%s/src/pagelists/marie_curie2_edited4.pagelist' % rospack.get_path('arbotix_controller'))
+        # tree = etree.parse('%s/src/pagelists/Chair-Poses.pagelist' % rospack.get_path('arbotix_controller'))
+        tree = etree.parse('%s/src/pagelists/marie_curie2_edited4.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('/home/mathias/Projects/jimmy_ros/src/arbotix_controller/src/PositionSequence.pagelist')
         self.pages = tree.findall('.//PageClass')
         self.page_length = len(self.pages)
@@ -80,6 +80,9 @@ class JimmyController(threading.Thread):
 
         # self.poses = Poses(pages[0])    # Only pick the first 'page'
         # rospy.loginfo(self.poses.getPoses())
+
+        pausemode = True  # blended in interpolated data
+        # pausemode = False # hard stops
 
         l = len(self.pages)
 
@@ -153,16 +156,21 @@ class JimmyController(threading.Thread):
                 # rospy.loginfo("Posex[%s]: %s" % (joint, posex))
                 # fposex = self.interpolate(posex, timing)
                 # fposex = self.interpolate2(posex, timing)
-                posex = []
-                timer = []
-                pauses = timing['PauseTime']
-                for m in range(len(timing['PauseTime'])):
-                    mult = int((round(pauses[m]/100.0)-1))
-                    posex += [[_posex[m]] + [_posex[m]]*mult]
-                    timer += [[_timer[m]] + [_timer[m]]*mult]
-                posex = [f for s in posex for f in s]
-                timer = [t for j in timer for t in j]
-                timing['Timer'] = timer
+                if pausemode:
+                    posex = []
+                    timer = []
+                    pauses = timing['PauseTime']
+                    for m in range(len(timing['PauseTime'])):
+                        mult = int((round(pauses[m]/100.0)-1))
+                        posex += [[_posex[m]] + [_posex[m]]*mult]
+                        timer += [[_timer[m]] + [_timer[m]]*mult]
+                    posex = [f for s in posex for f in s]
+                    timer = [t for j in timer for t in j]
+                    timing['Timer'] = timer
+                else:
+                    posex = list(_posex) 
+                    timing['Timer'] = list(timing['PauseTime'])
+
 
                 fposex = self.chooseInterpolate(posex, timing, 'cubic')
                 # rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
@@ -176,10 +184,12 @@ class JimmyController(threading.Thread):
                 #         pass
                 #     self.then = rospy.get_time()
 
-            # p = len(timing['PauseTime'])
-            # pause = [t * 0.01 for t in timing['PauseTime']]
-            # rospy.loginfo("p/pause: %s/%s" % (p, pause))
             p = len(timing['Timer'])
+            # p = len(timing['PauseTime'])
+            if not pausemode:
+                pause = [t * 0.01 for t in timing['PauseTime']]
+            # rospy.loginfo("p/pause: %s/%s" % (p, pause))
+            
 
             for i in range(posex_length):
                 mx = posex_length/p + 1
@@ -194,10 +204,10 @@ class JimmyController(threading.Thread):
 
                 d = 0.02
                 
-                # if (i % mx == 0):
-                #     ind = i/mx
-                #     d += pause[ind] 
-                # rospy.loginfo("Wait for: %s (%s) " % (d, pause[ind]*100))
+                if (i % mx == 0) and not pausemode:
+                    ind = i/mx
+                    d += pause[ind] 
+                    rospy.loginfo("Wait for: %s (%s) " % (d, pause[ind]*100))
                 while rospy.get_time() - self.then < d:                                         
                     pass
                 self.then = rospy.get_time()
