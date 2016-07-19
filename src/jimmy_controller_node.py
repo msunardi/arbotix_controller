@@ -95,6 +95,7 @@ class JimmyController(threading.Thread):
         self.init_ready = [False]*8
         self.ready = False
         self.enable_ready = False
+        self.add_initial = False    # False: add initial pose, True: don't add initial pose
 
         rospack = rospkg.RosPack()
 
@@ -141,16 +142,19 @@ class JimmyController(threading.Thread):
 
     def joint_callback(self, data):        
         # rospy.loginfo("Positions: %s" % position)
+        # self.ready = False
+        # self.enable_ready = True
         if not self.ready and self.enable_ready:
             names = data.name
-            position = [self.pospos(x) for x in data.position]
+            # position = [self.pospos(x) for x in data.position]
+            position = data.position
             fubar = zip(names, position) # create pairs            
             rospy.loginfo("data: %s" % fubar)
 
             for joint in fubar:
                 # rospy.loginfo(joint)
                 joint_name = joint[0]
-                joint_pos = joint[1]
+                joint_pos = self.pospos(joint[1])
                 if joint_name == 'left_sho_roll':
                     self.joint_pos['L_SHO_ROLL'] = joint_pos
                     self.init_ready[0] = True
@@ -184,12 +188,12 @@ class JimmyController(threading.Thread):
                     self.init_ready[7] = True
                     rospy.loginfo(">>>>> HEAD_TILT (%s)" % joint_pos)
         if not False in self.init_ready:
-            rospy.loginfo("OK! I'm ready")
+            # rospy.loginfo("OK! I'm ready")
             self.ready = True
 
     def pospos(self, x):
-        # Convert joint_pos from -1.0 - 1.0 to 0 - 1024
-        return min(1024, max(0, int((x * 512) + 512)))
+        # Convert joint_pos from -2.6 - 2.6 to 0 - 1020
+        return min(1020, max(0, int((x + 2.6)/2.6 * 512)))
         
     def run(self):
         rospy.loginfo("Setting up JimmyController ...")
@@ -260,9 +264,11 @@ class JimmyController(threading.Thread):
             #     except StopIteration:
             #         flag = False
             #         self.action = []
-            # if not self.ready:
-            #     rospy.loginfo("Not ready ...")
-            #     continue
+
+            # Wait until initial pose is captured
+            if not self.ready:
+                rospy.loginfo("Not ready ...")
+                continue
 
             if l > 1:
                 n = r.randint(0, l-1)
@@ -289,15 +295,14 @@ class JimmyController(threading.Thread):
 
             # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
             # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())
-            rospy.loginfo("R_SHO_PITCH::: %s" % xposes.getPoses()['R_SHO_PITCH'][:5])
-            xposes.addInitialPose(self.joint_pos)      
+            # rospy.loginfo("R_SHO_PITCH::: %s" % (x[:5] for k, x in xposes.getPoses().iteritems()))
+            if not self.add_initial:
+                rospy.loginfo("INITIAL JOINT POSE: %s" % self.joint_pos)
+                xposes.addInitialPose(self.joint_pos)
+                self.add_initial = True
             poses = xposes.getPoses()   # Load poses
             timing = xposes.getTiming()
-            rospy.loginfo("R_SHO_PITCH::: %s" % xposes.getPoses()['R_SHO_PITCH'][:5])
-
-            if not self.ready:
-                rospy.loginfo("Not ready ...")
-                continue
+            # rospy.loginfo("R_SHO_PITCH::: %s" % (x[:5] for k, x in xposes.getPoses().iteritems()))
 
             # poses_ = self.interpolate(poses, timing)
 
@@ -327,9 +332,11 @@ class JimmyController(threading.Thread):
                         timing['Timer'] = timer
                     else:
                         posex = list(_posex) 
-                        timing['Timer'] = list(timing['PauseTime'])
+                        timing['Timer'] = list(timing['Time'])
 
 
+                    # Choose interpolation method: linear, cubic, or lagrange
+                    # So far lagrange has a lot of issues (movements too big)
                     fposex = self.chooseInterpolate(posex, timing, 'cubic')
                     # rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
                     new_poses[joint] = fposex
@@ -511,7 +518,7 @@ class JimmyController(threading.Thread):
 
     def mapp(self, x):
         decimal.getcontext().prec=7
-        return (x - 512.0)/512.0 * 2.0       
+        return (x - 512.0)/512.0 * 2.6       
 
 def main(args):
     rospy.init_node('jimmy_controller_node', anonymous=True)

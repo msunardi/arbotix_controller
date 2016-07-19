@@ -93,10 +93,11 @@ class Poses:
 
         for key, value in i_timing.iteritems():
             self.timing[key].insert(0, value)
+            self.timing[key].insert(0, value)
 
         for key, value in init_pose.iteritems():
-            self.body[key] = [value]*2 + self.body[key][:]
+            self.body[key] = [value]*2 + self.body[key][1:]
 
         if init_timing != None:
             for key, value in init_timing.iteritems():
-                self.timing[key][0] = [value]*2 + self.timing[key][:]
+                self.timing[key][0] = [value]*2 + self.timing[key][2:]

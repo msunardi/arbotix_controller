@@ -1129,7 +1129,7 @@
         <PoseIndex>0</PoseIndex>
         <PoseStep>0</PoseStep>
         <Time>250</Time>
-        <PauseTime>0</PauseTime>
+        <PauseTime>300</PauseTime>
         <R_SHO_PITCH>512</R_SHO_PITCH>
         <L_SHO_PITCH>512</L_SHO_PITCH>
         <R_SHO_ROLL>512</R_SHO_ROLL>
