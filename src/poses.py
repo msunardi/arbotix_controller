@@ -62,3 +62,41 @@ class Poses:
 
     def getTiming(self):
         return self.timing
+
+    def addInitialPose(self, init_pose, init_timing=None):
+        init_body = {'R_SHO_PITCH': 512,
+                    'L_SHO_PITCH': 512,
+                    'R_SHO_ROLL': 512,
+                    'L_SHO_ROLL': 512,
+                    'R_ELBOW': 512,
+                    'L_ELBOW': 512,
+                    'R_HIP_YAW': 512,
+                    'L_HIP_YAW': 512,
+                    'R_HIP_ROLL': 512,
+                    'L_HIP_ROLL': 512,
+                    'R_HIP_PITCH': 512,
+                    'L_HIP_PITCH': 512,
+                    'R_KNEE': 512,
+                    'L_KNEE': 512,
+                    'R_ANK_PITCH': 512,
+                    'L_ANK_PITCH': 512,
+                    'R_ANK_ROLL': 512,
+                    'L_ANK_ROLL': 512,
+                    'HEAD_PAN': 512,
+                    'HEAD_TILT': 512
+                     }
+        i_timing = {'Time': 550,
+                    'PauseTime': 100
+                    }
+        for key, value in init_body.iteritems():
+            self.body[key].insert(0, value)
+
+        for key, value in i_timing.iteritems():
+            self.timing[key].insert(0, value)
+
+        for key, value in init_pose.iteritems():
+            self.body[key] = [value]*2 + self.body[key][:]
+
+        if init_timing != None:
+            for key, value in init_timing.iteritems():
+                self.timing[key][0] = [value]*2 + self.timing[key][:]
