@@ -25,8 +25,6 @@ class JimmyController(threading.Thread):
     then = 0
 
     def __init__(self):
-        # self.yaw_sub = rospy.Subscriber('/head/cmd_pose_yaw', Float32, self.yaw_callback)
-        # self.pitch_sub = rospy.Subscriber('/head/cmd_pose_pitch', Float32, self.pitch_callback)
 
         # List of recognized joints
         self.head_pan_pub = rospy.Publisher('/head_pan_joint/command', Float64, queue_size=10)        
@@ -109,12 +107,6 @@ class JimmyController(threading.Thread):
         self.page_length = len(self.pages)
 
         self.action = []    
-
-        # print "Pose classes: %s" % pose_classes
-        # R_SHO_PITCH = [[int(pcx.find('R_SHO_PITCH').text) for pcx in pc] for pc in pose_classes]
-
-        # self.poses = Poses(self.pages[0])    # Only pick the first 'page'
-        # rospy.loginfo(self.poses.getPoses())
 
         threading.Thread.__init__(self)
         self.sleeper = rospy.Rate(50)
@@ -218,17 +210,6 @@ class JimmyController(threading.Thread):
         self.relax_servos()
         self.enable_servos()
 
-        # joints = {'R_ELBOW': self.right_elbow,
-        #     'R_SHO_PITCH': self.right_sho_pitch,
-        #     'R_SHO_ROLL': self.right_sho_roll,
-        #     'L_ELBOW': self.left_elbow,
-        #     'L_SHO_PITCH': self.left_sho_pitch,
-        #     'L_SHO_ROLL': self.left_sho_roll,
-        #     'HEAD_PAN': self.head_pan_pub,
-        #     'HEAD_TILT': self.head_tilt_pub}
-
-        # self.poses = Poses(pages[0])    # Only pick the first 'page'
-        # rospy.loginfo(self.poses.getPoses())
 
         pausemode = True  # blended in interpolated data
         # pausemode = False # hard stops
@@ -237,33 +218,10 @@ class JimmyController(threading.Thread):
 
         flag = False
         n = 0
-        # xposes = Poses(self.pages[4]) 
-        # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
-        # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
-        # poses = xposes.getPoses()
-        # timing = xposes.getTiming()
-
-        # rospy.loginfo("GPoses: %s" % poses)
-        # rospy.loginfo("Timing: %s" % timing)
-
-        # poses_ = self.interpolate(poses, timing)
-
-        # rospy.loginfo("Poses_: %s" % poses_)
-        
+ 
 
         while not rospy.is_shutdown():
 
-            # if not flag:
-            #     self.action = iter(self.getAction())
-            #     flag = True
-            # else:
-            #     try:
-            #         pose = self.action.next()
-            #         for pub, pos in pose:
-            #             pub.publish(pos)
-            #     except StopIteration:
-            #         flag = False
-            #         self.action = []
 
             # Wait until initial pose is captured
             if not self.ready:
@@ -277,36 +235,17 @@ class JimmyController(threading.Thread):
             # xposes = Poses(self.pages[n]) 
             # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
             # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
-            # poses = xposes.getPoses()
-            # timing = xposes.getTiming()
-            # for i in range(len(poses['R_ELBOW'])):
-            #     for joint, pub in joints.iteritems():
-            #         foo = self.mapp(poses[joint][i])
-            #         pub.publish(Float64(foo))
-
-            #     # rospy.loginfo("----------------------%s" % rospy.get_time())
-            #     while rospy.get_time() - self.then < 0.3:                                         
-            #         pass
-            #     self.then = rospy.get_time()
-
-            # n = n % l
+            
             xposes = Poses(self.pages[n]) # for random
-            # xposes = Poses(self.pages[6]) # for individual
-
-            # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
-            # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())
-            # rospy.loginfo("R_SHO_PITCH::: %s" % (x[:5] for k, x in xposes.getPoses().iteritems()))
+            
+            # Only add initial pose at the very beginning - when the node first starts
             if not self.add_initial:
                 rospy.loginfo("INITIAL JOINT POSE: %s" % self.joint_pos)
                 xposes.addInitialPose(self.joint_pos)
                 self.add_initial = True
             poses = xposes.getPoses()   # Load poses
             timing = xposes.getTiming()
-            # rospy.loginfo("R_SHO_PITCH::: %s" % (x[:5] for k, x in xposes.getPoses().iteritems()))
-
-            # poses_ = self.interpolate(poses, timing)
-
-            # for i in range(len(poses_['R_ELBOW'])):
+            
             new_poses = {}
             posex_length = 0
 
@@ -316,14 +255,14 @@ class JimmyController(threading.Thread):
                     rospy.loginfo("Joint: %s" % joint)
                     _posex = poses[joint]
                     _timer = timing['Time']
-                    # rospy.loginfo("Posex[%s]: %s" % (joint, posex))
-                    # fposex = self.interpolate(posex, timing)
-                    # fposex = self.interpolate2(posex, timing)
+                    
+                    # If pausemode true: embed frames into motion data
                     if pausemode:
                         posex = []
                         timer = []
                         pauses = timing['PauseTime']
                         for m in range(len(timing['PauseTime'])):
+                            # The number of frames to embed = PauseTime/100
                             mult = int((round(pauses[m]/100.0)-1))
                             posex += [[_posex[m]] + [_posex[m]]*mult]
                             timer += [[_timer[m]] + [_timer[m]]*mult]
@@ -341,13 +280,6 @@ class JimmyController(threading.Thread):
                     # rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
                     new_poses[joint] = fposex
                     posex_length = len(fposex)
-                    # for p in fposex:
-                    #     pub.publish(Float64(p))
-
-                    #     #  rospy.loginfo("----------------------%s" % rospy.get_time())
-                    #     while rospy.get_time() - self.then < 0.03:                                         
-                    #         pass
-                    #     self.then = rospy.get_time()
 
                 p = len(timing['Timer'])
                 # p = len(timing['PauseTime'])
@@ -376,21 +308,6 @@ class JimmyController(threading.Thread):
                     while rospy.get_time() - self.then < d:                                         
                         pass
                     self.then = rospy.get_time()
-
-                    # mx = posex_length/p + 1
-                    # if (i % mx == 0):
-                    #     ind = i/mx
-                    #     while rospy.get_time() - self.then < pause[ind] * 0.01:
-                    #         pass
-                    #     self.then = rospy.get_time()
-
-                    # if (i != 0) and (i % p == 0):                    
-                    #     ind = int(i/p)
-                    #     rospy.loginfo("Pause time: %s" % pause[ind])
-                    #     while rospy.get_time() - self.then < pause[ind]/1000.0:
-                    #         pass
-                    #     self.then = rospy.get_time()
-                # # n += 1
 
             self.sleeper.sleep() 
 
@@ -426,42 +343,6 @@ class JimmyController(threading.Thread):
         # rospy.loginfo(chosen_action)
 
         return chosen_action
-
-    # def interpolate(self, action, timing):
-    #     for t in timing['Time']:    # t * 8 milliseconds, rate: 20Hz (50 ms)
-    #         tx = int(t) * 8
-    #         steps = tx/50 + 1  # tx milliseconds/50 ms
-    #         # rospy.loginfo("Timing: %s (%s ms), Steps: %s" % (t, tx, steps))
-
-    #         if steps < 1.0:
-    #             continue
-
-    #         # rospy.loginfo("Action: %s" % action)
-    #         for k, poses in action.iteritems():
-    #             l = len(poses) - 1
-    #             rospy.loginfo("XPoses: [%s] %s" % (k, poses))
-    #             rposes = []
-    #             for i in range(l):                    
-    #                 iposes = []
-    #                 p1 = int(poses[i])
-    #                 p2 = int(poses[i+1])
-    #                 rospy.loginfo("P1: %s, P2: %s" % (p1, p2))
-    #                 if p1 == p2:
-    #                     for j in range(steps):
-    #                         iposes += [p1]
-    #                 else:
-    #                     rospy.loginfo("FOOOOBAAARRRR")
-    #                     dp = p2 - p1
-    #                     dpdt = float(dp)/float(steps)
-    #                     for j in range(steps):
-    #                         iposes.append(int(p1 + j*dpdt))
-    #             rospy.loginfo("Iposes[%s]: %s" % (k, iposes))
-    #             rposes = iposes
-    #             # rospy.loginfo("rposes: %s" % rposes)
-    #             action[k] = rposes
-    #             rposes = None
-    #             # rospy.loginfo("%s: %s" % (k, action[k]))
-    #     return action
 
     def interpolate(self, fubar, timing):
         fb = []
@@ -502,9 +383,9 @@ class JimmyController(threading.Thread):
 
         fx = [self.mapp(f) for f in f2(xnew)]
 
-        # rospy.loginfo("Cubic interpolated: %s" % fx)
         return fx
         
+        # Plotting
         # axes = plt.gca()
         # axes.set_ylim([1200, 3000])
         # # plt.plot(x,y,'o', xnew, f(xnew), '-', xnew, f2(xnew), '--', xnew, f3(xnew), 'x')
