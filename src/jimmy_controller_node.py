@@ -104,7 +104,10 @@ class JimmyController(threading.Thread):
         self.init_ready = [False]*8
         self.ready = False
         self.enable_ready = False
-        self.add_initial = False    # False: add initial pose, True: don't add initial pose
+        self.add_initial = False # False: add initial pose, True: don't add initial pose        
+        self.pausemode = True  # False: hard stops, True: blended in interpolated data
+        self.interpolation_mode = 'cubic'
+
         # self.write_to_file = True
         self.loglog = True
 
@@ -118,8 +121,8 @@ class JimmyController(threading.Thread):
         # tree = etree.parse('/home/mathias/Downloads/WinRME/Chair-Poses.pagelist')
         # tree = etree.parse('%s/src/pagelists/test-poses.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('%s/src/pagelists/Chair-Poses.pagelist' % rospack.get_path('arbotix_controller'))
-        tree = etree.parse('%s/src/pagelists/marie_curie2_edited4.pagelist' % rospack.get_path('arbotix_controller'))
-        # tree = etree.parse('/home/mathias/Projects/jimmy_ros/src/arbotix_controller/src/PositionSequence.pagelist')
+        # tree = etree.parse('%s/src/pagelists/marie_curie2_edited4.pagelist' % rospack.get_path('arbotix_controller'))
+        tree = etree.parse('%s/src/pagelists/PositionSequence3.pagelist' % rospack.get_path('arbotix_controller'))
         self.pages = tree.findall('.//PageClass')
         self.page_length = len(self.pages)
 
@@ -228,9 +231,6 @@ class JimmyController(threading.Thread):
         self.enable_servos()
 
 
-        pausemode = True  # blended in interpolated data
-        # pausemode = False # hard stops
-
         l = len(self.pages)
 
         flag = False
@@ -304,35 +304,16 @@ class JimmyController(threading.Thread):
                         rospy.loginfo("LOGLOG: Original timing: %s" % _timer)
                         
                     
-                    # If pausemode true: embed frames into motion data
+                    # If self.pausemode true: embed frames into motion data
                     # Version 1.0
-                    if pausemode:
-                        posex = []
-                        timer = []
-                        div = 100.0
-                        pauses = timing['PauseTime']
-                        for m in range(len(timing['PauseTime'])):
-                            # The number of frames to embed = PauseTime/100
-                            mult = int((round(pauses[m]/div)-1))
-                            posex += [[_posex[m]] + [_posex[m]]*mult]
-                            timer += [[_timer[m]] + [_timer[m]]*mult]
-                        posex = [f for s in posex for f in s]
-                        timer = [t for j in timer for t in j]
-                        timing['Timer'] = timer
-                    else:
-                        posex = list(_posex) 
-                        timing['Timer'] = list(timing['Time'])
-
-                    # # Version 1.5
-                    # if pausemode:
+                    # if self.pausemode:
                     #     posex = []
                     #     timer = []
+                    #     div = 100.0
                     #     pauses = timing['PauseTime']
                     #     for m in range(len(timing['PauseTime'])):
                     #         # The number of frames to embed = PauseTime/100
-                    #         steps = _timer[m] * 8.0/50
-                    #         # mult = int((round(pauses[m]/100.0)-1))
-                    #         mult = int(round(pauses[m] / (3 * steps)))
+                    #         mult = int((round(pauses[m]/div)-1))
                     #         posex += [[_posex[m]] + [_posex[m]]*mult]
                     #         timer += [[_timer[m]] + [_timer[m]]*mult]
                     #     posex = [f for s in posex for f in s]
@@ -342,8 +323,27 @@ class JimmyController(threading.Thread):
                     #     posex = list(_posex) 
                     #     timing['Timer'] = list(timing['Time'])
 
+                    # # Version 1.5
+                    if self.pausemode:
+                        posex = []
+                        timer = []
+                        pauses = timing['PauseTime']
+                        for m in range(len(timing['PauseTime'])):
+                            # The number of frames to embed = PauseTime/100
+                            steps = _timer[m] * 8.0/50
+                            # mult = int((round(pauses[m]/100.0)-1))
+                            mult = int(round(pauses[m] / (3 * steps)))
+                            posex += [[_posex[m]] + [_posex[m]]*mult]
+                            timer += [[_timer[m]] + [_timer[m]]*mult]
+                        posex = [f for s in posex for f in s]
+                        timer = [t for j in timer for t in j]
+                        timing['Timer'] = timer
+                    else:
+                        posex = list(_posex) 
+                        timing['Timer'] = list(timing['Time'])
+
                     # Version 2.0
-                    # if pausemode:
+                    # if self.pausemode:
                     #     posex = []
                     #     timer = []
                     #     pauses = timing['PauseTime']
@@ -365,26 +365,26 @@ class JimmyController(threading.Thread):
 
                     # Choose interpolation method: linear, cubic, or lagrange
                     # So far lagrange has a lot of issues (movements too big)
-                    interpolation_mode = 'cubic'
-                    fposex = self.chooseInterpolate(posex, timing, interpolation_mode)
+                    
+                    fposex = self.chooseInterpolate(posex, timing, self.interpolation_mode)
                     # rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
 
                     # if self.write_to_file:
-                    #     interpolate_fh.write("Interpolation mode: %s\n" % interpolation_mode)
-                    #     interpolate_fh.write("Pausemode: %s\n" % pausemode)
-                    #     if pausemode:
+                    #     interpolate_fh.write("Interpolation mode: %s\n" % self.interpolation_mode)
+                    #     interpolate_fh.write("Pausemode: %s\n" % self.pausemode)
+                    #     if self.pausemode:
                     #         interpolate_fh.write("Pa100usemode adjusted data:\n%s" % posex)
                     #     interpolate_fh.write("Interpolated data:\n%s" % fposex)
                     #     interpolate_fh.write("\n-----\n")
 
-                    #     timer_fh.write("Interpolation mode: %s\n" % interpolation_mode)
-                    #     timer_fh.write("Pausemode: %s\n" % pausemode)
+                    #     timer_fh.write("Interpolation mode: %s\n" % self.interpolation_mode)
+                    #     timer_fh.write("Pausemode: %s\n" % self.pausemode)
                     #     timer_fh.write("Adjusted timing:\n%s" % timing['Timer'])
 
                     if self.loglog:
-                        rospy.loginfo("LOGLOG: Interpolation mode: %s" % interpolation_mode)
-                        rospy.loginfo("LOGLOG: Pausemode: %s" % pausemode)
-                        if pausemode:
+                        rospy.loginfo("LOGLOG: Interpolation mode: %s" % self.interpolation_mode)
+                        rospy.loginfo("LOGLOG: Pausemode: %s" % self.pausemode)
+                        if self.pausemode:
                             rospy.loginfo("LOGLOG: Pausemode adjusted data: %s" % posex)
                             rospy.loginfo("LOGLOG: Pausemode adjusted timer: %s" % timing['Timer'])
                         else:
@@ -399,18 +399,18 @@ class JimmyController(threading.Thread):
 
                 p = len(timing['Timer'])
                 # p = len(timing['PauseTime'])
-                if not pausemode:
+                if not self.pausemode:
                     pause = [t * 0.01 for t in timing['PauseTime']]
                 # rospy.loginfo("p/pause: %s/%s" % (p, pause))
                 
 
-                # if self.write_to_file and not pausemode:
+                # if self.write_to_file and not self.pausemode:
                 #     try:
                 #         pausetime_fh = open(file_pausetime, 'w')
                 #         pausetime_fh.write("PauseTime\n\n")
                 #     except IOError as e:
                 #         print "Problem opening file %s\nCause: %s" % (file_pausetime, e)
-                if self.loglog and not pausemode:
+                if self.loglog and not self.pausemode:
                     rospy.loginfo("LOGLOG: PauseTime data: %s" % pause)
 
                 for i in range(posex_length):
@@ -428,7 +428,7 @@ class JimmyController(threading.Thread):
 
                     d = 0.02
                     
-                    if (i % mx == 0) and not pausemode:
+                    if (i % mx == 0) and not self.pausemode:
                         ind = i/mx
                         d += pause[ind] 
                         rospy.loginfo("Wait for: %s (%s) " % (d, pause[ind]*100))
@@ -446,7 +446,7 @@ class JimmyController(threading.Thread):
             #             interpolate_fh.close()
             #         if not timer_fh.closed:
             #             timer_fh.close()
-            #         if not pausemode:
+            #         if not self.pausemode:
             #             if not pausetime_fh.closed:
             #                 pausetime_fh.close()
             #     except IOError:
