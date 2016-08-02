@@ -19,6 +19,17 @@ from arbotix_msgs.srv import *
 
 from poses import Poses
 
+# arbotix_controller_path = rospkg.RosPack().get_path('arbotix_controller')
+
+# file_interpolate = "%s/tests/interpolated_data.csv" % arbotix_controller_path
+# file_timer = "%s/tests/timer_data.csv" % arbotix_controller_path
+# file_pausetime = "%s/tests/pausetime_data.csv" % arbotix_controller_path
+
+# interpolate_fh = open(file_interpolate, 'w')
+# timer_fh = open(file_timer, 'w')
+# pausetime_fh = open(file_pausetime, 'w')
+
+
 class JimmyController(threading.Thread):
     roll = 0.0
     pan = 0.0
@@ -94,6 +105,12 @@ class JimmyController(threading.Thread):
         self.ready = False
         self.enable_ready = False
         self.add_initial = False    # False: add initial pose, True: don't add initial pose
+        # self.write_to_file = True
+        self.loglog = True
+
+        # self.interpolate_fh = None
+        # self.timer_fh = None
+        # self.pausetime_fh = None
 
         rospack = rospkg.RosPack()
 
@@ -251,19 +268,52 @@ class JimmyController(threading.Thread):
 
             if self.ready:
                 rospy.loginfo("Going to do %s!!!" % xposes.getTitle())
+                
+                # if self.write_to_file:
+                #     try:
+                #         interpolate_fh = open(file_interpolate, 'w')
+                #         timer_fh = open(file_timer, 'w')
+                #         if interpolate_fh == None:
+                #             raise IOError
+                #         if timer_fh == None:
+                #             raise IOError
+                #     except IOError as e:
+                #         print "Problems opening files!!! %s, %s\nCause: %s" % (file_interpolate, file_timer, e)
+
+
+
                 for joint, pub in self.joints.iteritems():
                     rospy.loginfo("Joint: %s" % joint)
                     _posex = poses[joint]
                     _timer = timing['Time']
+
+                    # if self.write_to_file:
+                    #     if not interpolate_fh.closed:
+                    #         interpolate_fh.write("JOINT: %s\n\n" % joint)
+                    #         interpolate_fh.write("Original motion:\n")
+                    #         interpolate_fh.write("%s" % _posex)
+
+                    #     if not timer_fh.closed:
+                    #         timer_fh.write("JOINT: %s\n\n" % joint)
+                    #         timer_fh.write("Original timing:\n")
+                    #         timer_fh.write("%s" % _timer)
+
+                    if self.loglog:
+                        rospy.loginfo("LOGLOG: JOINT: %s" % joint)
+                        rospy.loginfo("LOGLOG: Original motion: %s" % _posex)
+                        rospy.loginfo("LOGLOG: Original timing: %s" % _timer)
+                        
                     
                     # If pausemode true: embed frames into motion data
+                    # Version 1.0
                     if pausemode:
                         posex = []
                         timer = []
+                        div = 100.0
                         pauses = timing['PauseTime']
                         for m in range(len(timing['PauseTime'])):
                             # The number of frames to embed = PauseTime/100
-                            mult = int((round(pauses[m]/100.0)-1))
+                            mult = int((round(pauses[m]/div)-1))
                             posex += [[_posex[m]] + [_posex[m]]*mult]
                             timer += [[_timer[m]] + [_timer[m]]*mult]
                         posex = [f for s in posex for f in s]
@@ -273,12 +323,78 @@ class JimmyController(threading.Thread):
                         posex = list(_posex) 
                         timing['Timer'] = list(timing['Time'])
 
+                    # # Version 1.5
+                    # if pausemode:
+                    #     posex = []
+                    #     timer = []
+                    #     pauses = timing['PauseTime']
+                    #     for m in range(len(timing['PauseTime'])):
+                    #         # The number of frames to embed = PauseTime/100
+                    #         steps = _timer[m] * 8.0/50
+                    #         # mult = int((round(pauses[m]/100.0)-1))
+                    #         mult = int(round(pauses[m] / (3 * steps)))
+                    #         posex += [[_posex[m]] + [_posex[m]]*mult]
+                    #         timer += [[_timer[m]] + [_timer[m]]*mult]
+                    #     posex = [f for s in posex for f in s]
+                    #     timer = [t for j in timer for t in j]
+                    #     timing['Timer'] = timer
+                    # else:
+                    #     posex = list(_posex) 
+                    #     timing['Timer'] = list(timing['Time'])
+
+                    # Version 2.0
+                    # if pausemode:
+                    #     posex = []
+                    #     timer = []
+                    #     pauses = timing['PauseTime']
+                    #     for m in range(len(timing['PauseTime'])):
+                    #         # The number of frames to embed = PauseTime/100
+                    #         # mult = int((round(pauses[m]/100.0)-1))
+                    #         posex += [[_posex[m]] + [_posex[m]]]
+                    #         pause = timing['PauseTime'][m] * 10 # the actual time to pause in milliseconds
+                    #         steps = pause/20.0    # the number of interpolatoin points (20ms = time to transmit each data)
+                    #         timeval = steps*50/8.0
+                    #         timer += [[_timer[m]] + [timeval]]
+                    #     posex = [f for s in posex for f in s]
+                    #     timer = [t for j in timer for t in j]
+                    #     timing['Timer'] = timer
+                    # else:
+                    #     posex = list(_posex) 
+                    #     timing['Timer'] = list(timing['Time'])
+
 
                     # Choose interpolation method: linear, cubic, or lagrange
                     # So far lagrange has a lot of issues (movements too big)
-                    fposex = self.chooseInterpolate(posex, timing, 'cubic')
+                    interpolation_mode = 'cubic'
+                    fposex = self.chooseInterpolate(posex, timing, interpolation_mode)
                     # rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
-                    new_poses[joint] = fposex
+
+                    # if self.write_to_file:
+                    #     interpolate_fh.write("Interpolation mode: %s\n" % interpolation_mode)
+                    #     interpolate_fh.write("Pausemode: %s\n" % pausemode)
+                    #     if pausemode:
+                    #         interpolate_fh.write("Pa100usemode adjusted data:\n%s" % posex)
+                    #     interpolate_fh.write("Interpolated data:\n%s" % fposex)
+                    #     interpolate_fh.write("\n-----\n")
+
+                    #     timer_fh.write("Interpolation mode: %s\n" % interpolation_mode)
+                    #     timer_fh.write("Pausemode: %s\n" % pausemode)
+                    #     timer_fh.write("Adjusted timing:\n%s" % timing['Timer'])
+
+                    if self.loglog:
+                        rospy.loginfo("LOGLOG: Interpolation mode: %s" % interpolation_mode)
+                        rospy.loginfo("LOGLOG: Pausemode: %s" % pausemode)
+                        if pausemode:
+                            rospy.loginfo("LOGLOG: Pausemode adjusted data: %s" % posex)
+                            rospy.loginfo("LOGLOG: Pausemode adjusted timer: %s" % timing['Timer'])
+                        else:
+                            rospy.loginfo("LOGLOG: data: %s" % posex)
+                            rospy.loginfo("LOGLOG: timer: %s" % timing['Timer'])
+                        rospy.loginfo("LOGLOG: Interpolated data: %s" % fposex)
+                        rospy.loginfo("LOGLOG: Interpolated data (abtx): %s" % [self.pospos(x) for x in fposex])
+
+                    # new_poses is the final interpolated data
+                    new_poses[joint] = fposex 
                     posex_length = len(fposex)
 
                 p = len(timing['Timer'])
@@ -288,11 +404,22 @@ class JimmyController(threading.Thread):
                 # rospy.loginfo("p/pause: %s/%s" % (p, pause))
                 
 
+                # if self.write_to_file and not pausemode:
+                #     try:
+                #         pausetime_fh = open(file_pausetime, 'w')
+                #         pausetime_fh.write("PauseTime\n\n")
+                #     except IOError as e:
+                #         print "Problem opening file %s\nCause: %s" % (file_pausetime, e)
+                if self.loglog and not pausemode:
+                    rospy.loginfo("LOGLOG: PauseTime data: %s" % pause)
+
                 for i in range(posex_length):
                     mx = posex_length/p + 1
 
                     # Uncomment to move step by step
                     # if (i % mx == 0):
+                    #     ind = i/mx
+                    #     rospy.loginfo("LOGLOLG: PauseTime: %s" % pauses[ind])
                     #     raw_input("Press Enter to step through...")       
                    
                     for joint, pub in self.joints.iteritems():
@@ -305,17 +432,40 @@ class JimmyController(threading.Thread):
                         ind = i/mx
                         d += pause[ind] 
                         rospy.loginfo("Wait for: %s (%s) " % (d, pause[ind]*100))
+
+                        if self.loglog:
+                            rospy.loginfo("LOGLOG: PauseTime: %s/%s" % (d, pause[ind]*100))
+                        
                     while rospy.get_time() - self.then < d:                                         
                         pass
                     self.then = rospy.get_time()
 
-            self.sleeper.sleep() 
+            # if self.write_to_file:
+            #     try:
+            #         if not interpolate_fh.closed:
+            #             interpolate_fh.close()
+            #         if not timer_fh.closed:
+            #             timer_fh.close()
+            #         if not pausemode:
+            #             if not pausetime_fh.closed:
+            #                 pausetime_fh.close()
+            #     except IOError:
+            #         rospy.loginfo("Having problems closing files!")
+            #         print "Having problems closing files!"
+
+
+
+            self.sleeper.sleep()
+            rospy.signal_shutdown("Only running once.")
+            return 0
 
     def chooseInterpolate(self, posex, timing, interp='cubic'):
-        if interp == 'cubic' or interp == 'lagrange':
+        if interp == 'cubic' or interp == 'lagrange' or interp=='linear':
             return self.interpolate2(posex, timing, interp)
-        elif interp == 'linear':
-            return self.interpolate(posex, timing)
+        # elif interp == 'linear':
+        #     return self.interpolate(posex, timing)
+        elif interp == None:
+            return None
         else:
             raise ValueError("Invalid interpolation type")
 
@@ -369,8 +519,8 @@ class JimmyController(threading.Thread):
         x = np.linspace(0, l-1, num=l, endpoint=True)
         y = fubar
         # f = interp1d(x,y)
-        if interp == 'cubic':
-            f2 = interp1d(x,y, kind='cubic')
+        if interp == 'cubic' or interp == 'linear':
+            f2 = interp1d(x,y, kind=interp)
         elif interp == 'lagrange':
             f2 = lagrange(x, y)
         else:
