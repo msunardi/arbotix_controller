@@ -5,6 +5,7 @@ import xml.etree.ElementTree as etree
 import decimal
 from math import *
 from collections import deque
+import ast
 
 from scipy.interpolate import interp1d, lagrange
 import numpy as np
@@ -112,6 +113,7 @@ class JimmyController(threading.Thread):
 
         self.pages = None
         self.poses = None
+        self.poseTitle = "Default"
         self.init_ready = [False]*8
         self.ready = False
         self.enable_ready = False
@@ -132,11 +134,11 @@ class JimmyController(threading.Thread):
         # tree = etree.parse('/home/mathias/Downloads/WinRME/Chair-Poses.pagelist')
         # tree = etree.parse('%s/src/pagelists/test-poses.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('%s/src/pagelists/Chair-Poses.pagelist' % rospack.get_path('arbotix_controller'))
-        tree = etree.parse('%s/src/pagelists/marie_curie2_edited4.pagelist' % rospack.get_path('arbotix_controller'))
+        # tree = etree.parse('%s/src/pagelists/marie_curie2_edited4.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('%s/src/pagelists/PositionSequence4.pagelist' % rospack.get_path('arbotix_controller'))
         # tree = etree.parse('%s/PositionSequence.pagelist' % rospack.get_path('rebel_ros'))
-        self.pages = tree.findall('.//PageClass')
-        self.page_length = len(self.pages)
+        # self.pages = tree.findall('.//PageClass')
+        # self.page_length = len(self.pages)
 
         self.action = []    
 
@@ -219,12 +221,15 @@ class JimmyController(threading.Thread):
         # Reload the motion file if new gesture is given
         rospy.loginfo("[gesture_callback] Got new gesture: %s" % gesture.data)
         print "Greeting.data: %s" % gesture.data
-        get = self.rebel_parser("greeting")
+        get = self.rebel_parser(gesture.data)
         word = get.word
         sequence = get.sequence
-        rospy.loginfo("[gesture_callback] response:\n%s\n%s" % (word, sequence))
-        self.poses = sequence
-        self.ready = True
+        if word:
+            self.poseTitle = gesture.data          
+            seq = ast.literal_eval(sequence)
+            rospy.loginfo("[gesture_callback] response:\n%s\n%s" % (word, seq))
+            self.poses = seq
+            self.ready = True
         # tree = etree.parse('%s/PositionSequence.pagelist' % rospack.get_path('rebel_ros'))
         # self.pages = tree.findall('.//PageClass')
         # self.page_length = len(self.pages)
@@ -283,13 +288,20 @@ class JimmyController(threading.Thread):
                 n = 0
             # xposes = Poses(self.pages[n]) 
             # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
-            # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())       
-
-            if not self.pages and not self.poses:
-                continue
-            
+            # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())
             xposes = Poses()
-            xposes.loadPage(self.pages[n])    # for random
+
+            # if not self.pages and not self.poses:
+            #     continue
+            if self.pages:
+                xposes.loadPage(self.pages[n])
+            elif self.poses:
+                xposes.setTitle(self.poseTitle)
+                xposes.loadPoses(self.poses)
+            else:
+                continue            
+            
+            # xposes.loadPage(self.pages[n])    # for random
             # xposes.setPoses(self.poses)
             
             # Only add initial pose at the very beginning - when the node first starts
@@ -323,6 +335,7 @@ class JimmyController(threading.Thread):
                     rospy.loginfo("Joint: %s" % joint)
                     _posex = poses[joint]
                     _timer = timing['Time']
+                    rospy.loginfo("len(_posex): %s vs len(timing): %s" % (len(_posex), len(timing['PauseTime'])))
 
                     # if self.write_to_file:
                     #     if not interpolate_fh.closed:
@@ -498,6 +511,7 @@ class JimmyController(threading.Thread):
 
             self.ready = False
             self.pages = None
+            self.poses = None
             self.sleeper.sleep()
             # rospy.signal_shutdown("Only running once.")
             # return 0

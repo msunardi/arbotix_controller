@@ -1,15 +1,8 @@
 from collections import defaultdict
+import rospy
 
 class Poses:
     def __init__(self):
-        pass
-
-    def loadPage(self, page):
-
-        self.poses = page.find('Poses')
-        self.poseclasses = [pc.findall('.//PoseClass') for pc in self.poses]
-        # self.poses = page.find('Poses')
-        self.title = page.find('Title').text
         self.body = {'R_SHO_PITCH': None,
                     'L_SHO_PITCH': None,
                     'R_SHO_ROLL': None,
@@ -34,6 +27,15 @@ class Poses:
         self.timing = {'Time': None,
                     'PauseTime': None
                     }
+        self.title = "Default"
+
+    def loadPage(self, page):
+
+        self.poses = page.find('Poses')
+        self.poseclasses = [pc.findall('.//PoseClass') for pc in self.poses]
+        # self.poses = page.find('Poses')
+        self.title = page.find('Title').text
+        
         # self.allpages = []
         
         self.extractPoses()
@@ -54,11 +56,19 @@ class Poses:
         
         # return allpages
 
-    def setPoses(self, sequence):
-        self.body = sequence
+    def loadPoses(self, sequence):
+        rospy.loginfo("[loadPoses] Sequence: %s" % type(sequence))
+        for key, value in sequence.iteritems():
+            if key in self.body.keys():
+                self.body[key] = value
+            elif key in self.timing.keys():
+                self.timing[key] = value
     
     def _getJointPoses(self, joint_name, poses):
         return [int(pcx.find(joint_name).text) for pcx in poses]
+
+    def setTitle(self, title):
+        self.title = title
     
     def getTitle(self):
         return self.title
