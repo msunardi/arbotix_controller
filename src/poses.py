@@ -1,7 +1,10 @@
 from collections import defaultdict
 
 class Poses:
-    def __init__(self, page):
+    def __init__(self):
+        pass
+
+    def loadPage(self, page):
 
         self.poses = page.find('Poses')
         self.poseclasses = [pc.findall('.//PoseClass') for pc in self.poses]
@@ -50,6 +53,9 @@ class Poses:
             self.timing[key] = self._getJointPoses(key, self.poses)
         
         # return allpages
+
+    def setPoses(self, sequence):
+        self.body = sequence
     
     def _getJointPoses(self, joint_name, poses):
         return [int(pcx.find(joint_name).text) for pcx in poses]

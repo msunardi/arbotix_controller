@@ -13,9 +13,10 @@ import matplotlib.pyplot as plt
 import rospy
 import rospkg
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Float32, Float64
+from std_msgs.msg import Float32, Float64, String, Bool
 
 from arbotix_msgs.srv import *
+from rebel_ros.srv import *
 
 from poses import Poses
 
@@ -47,7 +48,12 @@ class JimmyController(threading.Thread):
         self.left_sho_roll = rospy.Publisher('/left_sho_roll/command', Float64, queue_size=10)
         self.left_elbow = rospy.Publisher('/left_elbow/command', Float64, queue_size=10)
 
-        self.joint_sub = rospy.Subscriber('/joint_states', JointState, self.joint_callback)
+        # self.joint_sub = rospy.Subscriber('/joint_states', JointState, self.joint_callback)
+        # self.gesture_command = rospy.Subscriber('/gesture_command', String, self.gesture_callback)
+        # self.interrupt = rospy.Subscriber('/interrupt', Bool, self.interrupt_callback)
+        rospy.Subscriber('/joint_states', JointState, self.joint_callback)
+        rospy.Subscriber('/gesture_command', String, self.gesture_callback)
+        rospy.Subscriber('/interrupt', Bool, self.interrupt_callback)
 
         self.head_pan_relax = rospy.ServiceProxy(
             '/head_pan_joint/relax', Relax)
@@ -83,6 +89,9 @@ class JimmyController(threading.Thread):
         self.right_sho_roll_enable = rospy.ServiceProxy(
             '/right_sho_roll/enable', Enable)
 
+        rospy.wait_for_service('rebel_parser_server')
+        self.rebel_parser = rospy.ServiceProxy('rebel_parser_server', Rebel)
+
         self.joints = {'R_ELBOW': self.right_elbow,
             'R_SHO_PITCH': self.right_sho_pitch,
             'R_SHO_ROLL': self.right_sho_roll,
@@ -101,6 +110,8 @@ class JimmyController(threading.Thread):
             'HEAD_PAN': 512,
             'HEAD_TILT': 512}
 
+        self.pages = None
+        self.poses = None
         self.init_ready = [False]*8
         self.ready = False
         self.enable_ready = False
@@ -204,6 +215,25 @@ class JimmyController(threading.Thread):
             # rospy.loginfo("OK! I'm ready")
             self.ready = True
 
+    def gesture_callback(self, gesture):
+        # Reload the motion file if new gesture is given
+        rospy.loginfo("[gesture_callback] Got new gesture: %s" % gesture.data)
+        print "Greeting.data: %s" % gesture.data
+        get = self.rebel_parser("greeting")
+        word = get.word
+        sequence = get.sequence
+        rospy.loginfo("[gesture_callback] response:\n%s\n%s" % (word, sequence))
+        self.poses = sequence
+        self.ready = True
+        # tree = etree.parse('%s/PositionSequence.pagelist' % rospack.get_path('rebel_ros'))
+        # self.pages = tree.findall('.//PageClass')
+        # self.page_length = len(self.pages)
+        # self.ready = True
+
+    def interrupt_callback(self, interrupt):
+        rospy.loginfo("Interrupt!")
+        self.ready = False
+
     def pospos(self, x):
         # Convert joint_pos from -2.6 - 2.6 to 0 - 1020
         return min(1020, max(0, int((x + 2.6)/2.6 * 512)))
@@ -226,20 +256,21 @@ class JimmyController(threading.Thread):
         rospy.wait_for_service('/left_sho_roll/enable')
         rospy.wait_for_service('/right_elbow/enable')
         rospy.wait_for_service('/right_sho_pitch/enable')
-        rospy.wait_for_service('/right_sho_roll/enable')
+        rospy.wait_for_service('/right_sho_roll/enable')        
 
         self.relax_servos()
         self.enable_servos()
 
-
-        l = len(self.pages)
+        if self.pages:
+            l = len(self.pages)
+        else:
+            l = 0
 
         flag = False
         n = 0
  
 
         while not rospy.is_shutdown():
-
 
             # Wait until initial pose is captured
             if not self.ready:
@@ -252,9 +283,14 @@ class JimmyController(threading.Thread):
                 n = 0
             # xposes = Poses(self.pages[n]) 
             # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
-            # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
+            # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())       
+
+            if not self.pages and not self.poses:
+                continue
             
-            xposes = Poses(self.pages[n]) # for random
+            xposes = Poses()
+            xposes.loadPage(self.pages[n])    # for random
+            # xposes.setPoses(self.poses)
             
             # Only add initial pose at the very beginning - when the node first starts
             if not self.add_initial:
@@ -414,6 +450,7 @@ class JimmyController(threading.Thread):
                 if self.loglog and not self.pausemode:
                     rospy.loginfo("LOGLOG: PauseTime data: %s" % pause)
 
+                # Execute all motion until finished
                 for i in range(posex_length):
                     mx = posex_length/p + 1
 
@@ -441,6 +478,10 @@ class JimmyController(threading.Thread):
                         pass
                     self.then = rospy.get_time()
 
+                    # Quit/immediately stop if interrupted
+                    if not self.ready:
+                        break
+
             # if self.write_to_file:
             #     try:
             #         if not interpolate_fh.closed:
@@ -455,10 +496,11 @@ class JimmyController(threading.Thread):
             #         print "Having problems closing files!"
 
 
-
+            self.ready = False
+            self.pages = None
             self.sleeper.sleep()
-            rospy.signal_shutdown("Only running once.")
-            return 0
+            # rospy.signal_shutdown("Only running once.")
+            # return 0
 
     def chooseInterpolate(self, posex, timing, interp='cubic'):
         if interp == 'cubic' or interp == 'lagrange' or interp=='linear':
@@ -553,7 +595,7 @@ class JimmyController(threading.Thread):
         return (x - 512.0)/512.0 * 2.6       
 
 def main(args):
-    rospy.init_node('jimmy_controller_node', anonymous=True)
+    rospy.init_node('jimmy_controller_node_v2', anonymous=True)
     jimmyc = JimmyController()
     jimmyc.start()
     rospy.spin()

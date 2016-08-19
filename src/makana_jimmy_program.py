@@ -260,6 +260,21 @@ def XMLMiddle(XML_Out, PositionSequence):
         CurrentPosition = NextPosition
         print "CurrentPosition: %s" % CurrentPosition
 
+def ProcessPositions(PositionSequence):
+    print "Pos sequence: %s" % PositionSequence
+    CurrentPosition = [512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512, 512]
+    output_position = []
+    for i in range(len(PositionSequence)):     
+        NextPosition = PositionSequence[i]
+        print "NextPosition: %s" % NextPosition
+        NextPosition = MergePositions(CurrentPosition, NextPosition)
+        if  i != 0:
+            output_position += [MakePositionList(NextPosition)]
+        CurrentPosition = NextPosition
+        print "CurrentPosition: %s" % CurrentPosition
+
+    return output_position
+
 def Repeat(n, s):
     if n == 0:
         return []
@@ -282,16 +297,17 @@ def XMLEverything(XML_Out, PositionSequence): #all the xml stuff put in one def
 
 
 def JimmyDo(seq):
-    XML_Out = open('PositionSequence.pagelist', 'w') #opening the file to write xml info
+    XML_Out = open('TestSequence.pagelist', 'w') #opening the file to write xml info
     XMLEverything(XML_Out, seq)
+    # return ProcessPositions(seq)
 
 
 
 s = dict()
 InsertPositionLibrary(s)
 #demo 1:
-arm_r = Repeat(3, s['right_arm_wave'] + s['right_arm_down'])
-arm_l = s['pause'] + Repeat(3, s['left_arm_wave'] + s['left_arm_down'])
+arm_r = Repeat(3, s['right_arm_wave'] + s['right_arm_down'] + s['muscle_flex_1']) + Repeat(3, s['muscle_flex_1'] + s['right_arm_down'])
+arm_l = s['pause'] + Repeat(3, s['left_arm_wave'] + s['left_arm_down'] + s['why_2'] + s['left_arm_down'])
 arms = Merge(arm_r, arm_l)
 # leg_r = Repeat(2, s['pause']) + Repeat(3, s['right_front_kick_90'] + s['right_kick_down'])
 # leg_l = Repeat(3, s['pause']) + Repeat(3, s['left_front_kick_90'] + s['left_kick_down'])

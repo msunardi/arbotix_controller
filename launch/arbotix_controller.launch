@@ -3,5 +3,5 @@
     <rosparam file="$(find arbotix_controller)/launch/arbotix_config.yaml" command="load" />
   </node>
   <!-- main node -->
-  <node name="jimmy" pkg="arbotix_controller" type="jimmy_controller_node.py" />
+  <node name="jimmy" pkg="arbotix_controller" type="jimmy_controller_node_v2.py" />
 </launch>
