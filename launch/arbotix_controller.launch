@@ -3,6 +3,7 @@
     <rosparam file="$(find arbotix_controller)/launch/arbotix_config.yaml" command="load" />
   </node>
   <node name="rebel" pkg="rebel_ros" type="rebel_server.py" />
+  <node name="midimotion" pkg="midi_motion" type="mm_server.py" />
   <!-- main node -->
   <node name="jimmy" pkg="arbotix_controller" type="jimmy_controller_node_v2.py" />
 </launch>
