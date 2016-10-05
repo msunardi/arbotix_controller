@@ -234,7 +234,10 @@ class JimmyController(threading.Thread):
 
         # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), r.choice(['lullaby_of_birdland', 'dancing_queen']))
         # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'lullaby_of_birdland')
-        med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'dancing_queen')
+        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'dancing_queen')
+        med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'pink_panther')
+        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'pink_panther2')
+        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'auld_lang_syne')
         rospy.loginfo("%s med_file_path: %s" % (caller, med_file_path))
         mididata = self.midi_motion(med_file_path)
         
@@ -242,6 +245,7 @@ class JimmyController(threading.Thread):
             self.poseTitle = gesture.data          
             seq = ast.literal_eval(sequence)
             seq['PauseTime'] = self.update_timing_data(seq['PauseTime'], ast.literal_eval(mididata.timing))
+            seq['Time'] = self.update_timing_data(seq['Time'], ast.literal_eval(mididata.timing))
             rospy.loginfo("%s response:\n%s\n%s" % (caller, word, seq))
             print "%s response:\n%s\n%s" % (caller, word, seq)
             self.poses = seq
@@ -257,7 +261,7 @@ class JimmyController(threading.Thread):
         l = len(sequence)
         timing_delta = [midi_timing[i+1]-midi_timing[i] for i in range(len(midi_timing)-1)]
         if len(timing_delta) >= l:
-            return [t*100 for t in timing_delta[:l]] # Only return timing data as many as sequence data
+            return [t*200 for t in timing_delta[:l]] # Only return timing data as many as sequence data
         else:
             return sequence['Time']
 
