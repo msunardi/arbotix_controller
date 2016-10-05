@@ -232,7 +232,9 @@ class JimmyController(threading.Thread):
         word = get.word
         sequence = get.sequence
 
-        med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), r.choice(['lullaby_of_birdland', 'dancing_queen']))
+        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), r.choice(['lullaby_of_birdland', 'dancing_queen']))
+        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'lullaby_of_birdland')
+        med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'dancing_queen')
         rospy.loginfo("%s med_file_path: %s" % (caller, med_file_path))
         mididata = self.midi_motion(med_file_path)
         
@@ -535,6 +537,7 @@ class JimmyController(threading.Thread):
 
 
             self.ready = False
+            self.add_initial = False
             self.pages = None
             self.poses = None
             self.sleeper.sleep()
