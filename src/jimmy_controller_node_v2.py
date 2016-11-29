@@ -126,6 +126,10 @@ class JimmyController(threading.Thread):
         self.add_initial = False # False: add initial pose, True: don't add initial pose        
         self.pausemode = True  # False: hard stops, True: blended in interpolated data
         self.interpolation_mode = 'cubic'
+        self.interpolation_mode = 'catmull-rom'
+        self.use_midi = True
+        self.midi_title = "Default"
+        self.catmull_rom_res = 0.04
 
         # self.write_to_file = True
         self.loglog = True
@@ -232,22 +236,28 @@ class JimmyController(threading.Thread):
         word = get.word
         sequence = get.sequence
 
-        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), r.choice(['lullaby_of_birdland', 'dancing_queen']))
-        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'lullaby_of_birdland')
-        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'dancing_queen')
-        med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'pink_panther')
-        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'pink_panther2')
-        # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'auld_lang_syne')
-        rospy.loginfo("%s med_file_path: %s" % (caller, med_file_path))
-        mididata = self.midi_motion(med_file_path)
+        if self.use_midi:
+            # self.midi_title = r.choice(['lullaby_of_birdland', 'dancing_queen', 'pink_panther2', 'auld_lang_syne'])
+            # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), self.midi_title)
+            # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'lullaby_of_birdland')
+            # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'dancing_queen')
+            # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'pink_panther')
+            med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'pink_panther2')
+            # med_file_path = '%s/src/%s.med' % (self.rospack.get_path('midi_motion'), 'auld_lang_syne')
+            rospy.loginfo("%s med_file_path: %s" % (caller, med_file_path))
+            mididata = self.midi_motion(med_file_path)
         
         if word:
             self.poseTitle = gesture.data          
             seq = ast.literal_eval(sequence)
-            seq['PauseTime'] = self.update_timing_data(seq['PauseTime'], ast.literal_eval(mididata.timing))
-            seq['Time'] = self.update_timing_data(seq['Time'], ast.literal_eval(mididata.timing))
+            if self.use_midi:
+                rospy.loginfo("%s Applying MIDI data from: ... %s" % (caller, self.midi_title))
+                rospy.loginfo("%s original timing 'Time': %s" % (caller, seq['Time']))
+                seq['PauseTime'] = self.update_timing_data(seq['PauseTime'], ast.literal_eval(mididata.timing))
+                seq['Time'] = self.update_timing_data(seq['Time'], ast.literal_eval(mididata.timing))
+                rospy.loginfo("%s updated timing 'Time': %s" % (caller, seq['Time']))
             rospy.loginfo("%s response:\n%s\n%s" % (caller, word, seq))
-            print "%s response:\n%s\n%s" % (caller, word, seq)
+            
             self.poses = seq
             self.ready = True
         # tree = etree.parse('%s/PositionSequence.pagelist' % rospack.get_path('rebel_ros'))
@@ -257,7 +267,7 @@ class JimmyController(threading.Thread):
 
     def update_timing_data(self, sequence, midi_timing):
         print "Sequence: %s" % sequence
-        print midi_timing
+        rospy.loginfo("[update_timing_data]: %s" % midi_timing)
         l = len(sequence)
         timing_delta = [midi_timing[i+1]-midi_timing[i] for i in range(len(midi_timing)-1)]
         if len(timing_delta) >= l:
@@ -549,7 +559,7 @@ class JimmyController(threading.Thread):
             # return 0
 
     def chooseInterpolate(self, posex, timing, interp='cubic'):
-        if interp == 'cubic' or interp == 'lagrange' or interp=='linear':
+        if interp == 'cubic' or interp == 'lagrange' or interp=='linear' or interp == 'catmull-rom':
             return self.interpolate2(posex, timing, interp)
         # elif interp == 'linear':
         #     return self.interpolate(posex, timing)
@@ -608,19 +618,33 @@ class JimmyController(threading.Thread):
         x = np.linspace(0, l-1, num=l, endpoint=True)
         y = fubar
         # f = interp1d(x,y)
-        if interp == 'cubic' or interp == 'linear':
-            f2 = interp1d(x,y, kind=interp)
-        elif interp == 'lagrange':
-            f2 = lagrange(x, y)
-        else:
-            raise ValueError('Invalid interpolation type!')
+
         steps = 0
         for t in timing['Timer']:
             steps += int(t * 8/50.0)
 
         xnew = np.linspace(0, l-1, num=steps, endpoint=True)
+        rospy.loginfo("Interpolate2 steps: %s" % steps)
+        if interp == 'cubic' or interp == 'linear':
+            f2 = interp1d(x,y, kind=interp)
+        elif interp == 'lagrange':
+            f2 = lagrange(x, y)
+        elif interp == 'catmull-rom':
+            x_intpol, y_intpol = self.catmull_rom(x, y, steps)
+            plt.figure()
+            plt.scatter(x, y)
+            plt.plot(x_intpol, y_intpol)
+            plt.show()
+            return [self.mapp(f) for f in y_intpol]
+        else:
+            raise ValueError('Invalid interpolation type!')
+        
 
         fx = [self.mapp(f) for f in f2(xnew)]
+        plt.figure()
+        plt.scatter(x, y)
+        plt.plot(xnew, f2(xnew))
+        plt.show()
 
         return fx
         
@@ -638,7 +662,84 @@ class JimmyController(threading.Thread):
 
     def mapp(self, x):
         decimal.getcontext().prec=7
-        return (x - 512.0)/512.0 * 2.6       
+        return (x - 512.0)/512.0 * 2.6
+
+    # Ref: https://github.com/vmichals/python-algos/blob/master/catmull_rom_spline.py
+    def catmull_rom_one_point(self, x, v0, v1, v2, v3):
+        """Computes interpolated y-coord for given x-coord using Catmull-Rom.
+
+        Computes an interpolated y-coordinate for the given x-coordinate between
+        the support points v1 and v2. The neighboring support points v0 and v3 are
+        used by Catmull-Rom to ensure a smooth transition between the spline
+        segments.
+        Args:
+            x: the x-coord, for which the y-coord is needed
+            v0: 1st support point
+            v1: 2nd support point
+            v2: 3rd support point
+            v3: 4th support point
+        """
+        c1 = 1. * v1
+        c2 = -.5 * v0 + .5 * v2
+        c3 = 1. * v0 + -2.5 * v1 + 2. * v2 -.5 * v3
+        c4 = -.5 * v0 + 1.5 * v1 + -1.5 * v2 + .5 * v3
+        return (((c4 * x + c3) * x + c2) * x + c1)
+
+    def catmull_rom(self, p_x, p_y, res):
+        """Computes Catmull-Rom Spline for given support points and resolution.
+
+        Args:
+            p_x: array of x-coords
+            p_y: array of y-coords
+            res: resolution of a segment (including the start point, but not the
+                endpoint of the segment)
+        """
+        res = int(ceil(self.catmull_rom_res * res))
+        # res = self.catmull_rom_res
+        # create arrays for spline points
+        x_intpol = np.empty(res*(len(p_x)-1) + 1)
+        y_intpol = np.empty(res*(len(p_x)-1) + 1)
+
+        # set the last x- and y-coord, the others will be set in the loop
+        x_intpol[-1] = p_x[-1]
+        y_intpol[-1] = p_y[-1]
+
+        # loop over segments (we have n-1 segments for n points)
+        for i in range(len(p_x)-1):
+            # set x-coords
+            x_intpol[i*res:(i+1)*res] = np.linspace(
+                p_x[i], p_x[i+1], res, endpoint=False)
+            if i == 0:
+                # need to estimate an additional support point before the first
+                y_intpol[:res] = np.array([
+                    self.catmull_rom_one_point(
+                        x,
+                        p_y[0] - (p_y[1] - p_y[0]), # estimated start point,
+                        p_y[0],
+                        p_y[1],
+                        p_y[2])
+                    for x in np.linspace(0.,1.,res, endpoint=False)])
+            elif i == len(p_x) - 2:
+                # need to estimate an additional support point after the last
+                y_intpol[i*res:-1] = np.array([
+                    self.catmull_rom_one_point(
+                        x,
+                        p_y[i-1],
+                        p_y[i],
+                        p_y[i+1],
+                        p_y[i+1] + (p_y[i+1] - p_y[i]) # estimated end point
+                    ) for x in np.linspace(0.,1.,res, endpoint=False)])
+            else:
+                y_intpol[i*res:(i+1)*res] = np.array([
+                    self.catmull_rom_one_point(
+                        x,
+                        p_y[i-1],
+                        p_y[i],
+                        p_y[i+1],
+                        p_y[i+2]) for x in np.linspace(0.,1.,res, endpoint=False)])
+
+
+        return (x_intpol, y_intpol)
 
 def main(args):
     rospy.init_node('jimmy_controller_node_v2', anonymous=True)
