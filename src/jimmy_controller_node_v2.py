@@ -40,7 +40,7 @@ class JimmyController(threading.Thread):
     def __init__(self):
 
         # List of recognized joints
-        self.head_pan_pub = rospy.Publisher('/head_pan_joint/command', Float64, queue_size=10)        
+        self.head_pan_pub = rospy.Publisher('/head_pan_joint/command', Float64, queue_size=10)
         self.head_tilt_pub = rospy.Publisher('/head_tilt_joint/command', Float64, queue_size=10)
         self.right_sho_pitch = rospy.Publisher('/right_sho_pitch/command', Float64, queue_size=10)
         self.right_sho_roll = rospy.Publisher('/right_sho_roll/command', Float64, queue_size=10)
@@ -67,9 +67,9 @@ class JimmyController(threading.Thread):
         self.left_sho_roll_relax = rospy.ServiceProxy(
             '/left_sho_roll/relax', Relax)
         self.right_elbow_relax = rospy.ServiceProxy(
-            '/right_elbow/relax', Relax)        
+            '/right_elbow/relax', Relax)
         self.right_sho_pitch_relax = rospy.ServiceProxy(
-            '/right_sho_pitch/relax', Relax)        
+            '/right_sho_pitch/relax', Relax)
         self.right_sho_roll_relax = rospy.ServiceProxy(
             '/right_sho_roll/relax', Relax)
 
@@ -84,9 +84,9 @@ class JimmyController(threading.Thread):
         self.left_sho_roll_enable = rospy.ServiceProxy(
             '/left_sho_roll/enable', Enable)
         self.right_elbow_enable = rospy.ServiceProxy(
-            '/right_elbow/enable', Enable)        
+            '/right_elbow/enable', Enable)
         self.right_sho_pitch_enable = rospy.ServiceProxy(
-            '/right_sho_pitch/enable', Enable)        
+            '/right_sho_pitch/enable', Enable)
         self.right_sho_roll_enable = rospy.ServiceProxy(
             '/right_sho_roll/enable', Enable)
 
@@ -117,9 +117,10 @@ class JimmyController(threading.Thread):
         self.init_ready = [False]*8
         self.ready = False
         self.enable_ready = False
-        self.add_initial = False # False: add initial pose, True: don't add initial pose        
+        self.add_initial = False # False: add initial pose, True: don't add initial pose
         self.pausemode = True  # False: hard stops, True: blended in interpolated data
         self.interpolation_mode = 'cubic'
+        self.catmull_rom_res = 50
 
         # self.write_to_file = True
         self.loglog = True
@@ -140,7 +141,7 @@ class JimmyController(threading.Thread):
         # self.pages = tree.findall('.//PageClass')
         # self.page_length = len(self.pages)
 
-        self.action = []    
+        self.action = []
 
         threading.Thread.__init__(self)
         self.sleeper = rospy.Rate(50)
@@ -166,7 +167,7 @@ class JimmyController(threading.Thread):
         self.right_sho_roll_enable(True)
         self.enable_ready = True
 
-    def joint_callback(self, data):        
+    def joint_callback(self, data):
         # rospy.loginfo("Positions: %s" % position)
         # self.ready = False
         # self.enable_ready = True
@@ -174,7 +175,7 @@ class JimmyController(threading.Thread):
             names = data.name
             # position = [self.pospos(x) for x in data.position]
             position = data.position
-            fubar = zip(names, position) # create pairs            
+            fubar = zip(names, position) # create pairs
             rospy.loginfo("data: %s" % fubar)
 
             for joint in fubar:
@@ -225,7 +226,7 @@ class JimmyController(threading.Thread):
         word = get.word
         sequence = get.sequence
         if word:
-            self.poseTitle = gesture.data          
+            self.poseTitle = gesture.data
             seq = ast.literal_eval(sequence)
             rospy.loginfo("[gesture_callback] response:\n%s\n%s" % (word, seq))
             self.poses = seq
@@ -242,7 +243,7 @@ class JimmyController(threading.Thread):
     def pospos(self, x):
         # Convert joint_pos from -2.6 - 2.6 to 0 - 1020
         return min(1020, max(0, int((x + 2.6)/2.6 * 512)))
-        
+
     def run(self):
         rospy.loginfo("Setting up JimmyController ...")
 
@@ -261,7 +262,7 @@ class JimmyController(threading.Thread):
         rospy.wait_for_service('/left_sho_roll/enable')
         rospy.wait_for_service('/right_elbow/enable')
         rospy.wait_for_service('/right_sho_pitch/enable')
-        rospy.wait_for_service('/right_sho_roll/enable')        
+        rospy.wait_for_service('/right_sho_roll/enable')
 
         self.relax_servos()
         self.enable_servos()
@@ -273,7 +274,7 @@ class JimmyController(threading.Thread):
 
         flag = False
         n = 0
- 
+
 
         while not rospy.is_shutdown():
 
@@ -286,7 +287,7 @@ class JimmyController(threading.Thread):
                 n = r.randint(0, l-1)
             else:
                 n = 0
-            # xposes = Poses(self.pages[n]) 
+            # xposes = Poses(self.pages[n])
             # rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
             # rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())
             xposes = Poses()
@@ -299,11 +300,11 @@ class JimmyController(threading.Thread):
                 xposes.setTitle(self.poseTitle)
                 xposes.loadPoses(self.poses)
             else:
-                continue            
-            
+                continue
+
             # xposes.loadPage(self.pages[n])    # for random
             # xposes.setPoses(self.poses)
-            
+
             # Only add initial pose at the very beginning - when the node first starts
             if not self.add_initial:
                 rospy.loginfo("INITIAL JOINT POSE: %s" % self.joint_pos)
@@ -311,13 +312,13 @@ class JimmyController(threading.Thread):
                 self.add_initial = True
             poses = xposes.getPoses()   # Load poses
             timing = xposes.getTiming()
-            
+
             new_poses = {}
             posex_length = 0
 
             if self.ready:
                 rospy.loginfo("Going to do %s!!!" % xposes.getTitle())
-                
+
                 # if self.write_to_file:
                 #     try:
                 #         interpolate_fh = open(file_interpolate, 'w')
@@ -352,8 +353,8 @@ class JimmyController(threading.Thread):
                         rospy.loginfo("LOGLOG: JOINT: %s" % joint)
                         rospy.loginfo("LOGLOG: Original motion: %s" % _posex)
                         rospy.loginfo("LOGLOG: Original timing: %s" % _timer)
-                        
-                    
+
+
                     # If self.pausemode true: embed frames into motion data
                     # Version 1.0
                     # if self.pausemode:
@@ -370,7 +371,7 @@ class JimmyController(threading.Thread):
                     #     timer = [t for j in timer for t in j]
                     #     timing['Timer'] = timer
                     # else:
-                    #     posex = list(_posex) 
+                    #     posex = list(_posex)
                     #     timing['Timer'] = list(timing['Time'])
 
                     # # Version 1.5
@@ -389,7 +390,7 @@ class JimmyController(threading.Thread):
                         timer = [t for j in timer for t in j]
                         timing['Timer'] = timer
                     else:
-                        posex = list(_posex) 
+                        posex = list(_posex)
                         timing['Timer'] = list(timing['Time'])
 
                     # Version 2.0
@@ -409,13 +410,13 @@ class JimmyController(threading.Thread):
                     #     timer = [t for j in timer for t in j]
                     #     timing['Timer'] = timer
                     # else:
-                    #     posex = list(_posex) 
+                    #     posex = list(_posex)
                     #     timing['Timer'] = list(timing['Time'])
 
 
                     # Choose interpolation method: linear, cubic, or lagrange
                     # So far lagrange has a lot of issues (movements too big)
-                    
+
                     fposex = self.chooseInterpolate(posex, timing, self.interpolation_mode)
                     # rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
 
@@ -444,7 +445,7 @@ class JimmyController(threading.Thread):
                         rospy.loginfo("LOGLOG: Interpolated data (abtx): %s" % [self.pospos(x) for x in fposex])
 
                     # new_poses is the final interpolated data
-                    new_poses[joint] = fposex 
+                    new_poses[joint] = fposex
                     posex_length = len(fposex)
 
                 p = len(timing['Timer'])
@@ -452,7 +453,7 @@ class JimmyController(threading.Thread):
                 if not self.pausemode:
                     pause = [t * 0.01 for t in timing['PauseTime']]
                 # rospy.loginfo("p/pause: %s/%s" % (p, pause))
-                
+
 
                 # if self.write_to_file and not self.pausemode:
                 #     try:
@@ -471,23 +472,23 @@ class JimmyController(threading.Thread):
                     # if (i % mx == 0):
                     #     ind = i/mx
                     #     rospy.loginfo("LOGLOLG: PauseTime: %s" % pauses[ind])
-                    #     raw_input("Press Enter to step through...")       
-                   
+                    #     raw_input("Press Enter to step through...")
+
                     for joint, pub in self.joints.iteritems():
                         pos = new_poses[joint][i]
                         pub.publish(Float64(pos))
 
                     d = 0.02
-                    
+
                     if (i % mx == 0) and not self.pausemode:
                         ind = i/mx
-                        d += pause[ind] 
+                        d += pause[ind]
                         rospy.loginfo("Wait for: %s (%s) " % (d, pause[ind]*100))
 
                         if self.loglog:
                             rospy.loginfo("LOGLOG: PauseTime: %s/%s" % (d, pause[ind]*100))
-                        
-                    while rospy.get_time() - self.then < d:                                         
+
+                    while rospy.get_time() - self.then < d:
                         pass
                     self.then = rospy.get_time()
 
@@ -534,9 +535,9 @@ class JimmyController(threading.Thread):
             n = r.randint(0, self.page_length-1)
         else:
             n = 0
-        xposes = Poses(self.pages[n]) 
+        xposes = Poses(self.pages[n])
         rospy.loginfo("**-------\nPlaying page: %s" % xposes.getTitle()) # print title
-        rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())         
+        rospy.loginfo("**-------\nMotion: %s" % xposes.getPoses())
         poses = xposes.getPoses()
         timing = xposes.getTiming()
 
@@ -576,22 +577,36 @@ class JimmyController(threading.Thread):
         x = np.linspace(0, l-1, num=l, endpoint=True)
         y = fubar
         # f = interp1d(x,y)
-        if interp == 'cubic' or interp == 'linear':
-            f2 = interp1d(x,y, kind=interp)
-        elif interp == 'lagrange':
-            f2 = lagrange(x, y)
-        else:
-            raise ValueError('Invalid interpolation type!')
+
         steps = 0
         for t in timing['Timer']:
             steps += int(t * 8/50.0)
 
         xnew = np.linspace(0, l-1, num=steps, endpoint=True)
+        rospy.loginfo("Interpolate2 steps: %s" % steps)
+        if interp == 'cubic' or interp == 'linear':
+            f2 = interp1d(x,y, kind=interp)
+        elif interp == 'lagrange':
+            f2 = lagrange(x, y)
+        elif interp == 'catmull-rom':
+            x_intpol, y_intpol = self.catmull_rom(x, y, steps)
+            # plt.figure()
+            # plt.scatter(x, y)
+            # plt.plot(x_intpol, y_intpol)
+            # plt.show()
+            return [self.mapp(f) for f in y_intpol]
+        else:
+            raise ValueError('Invalid interpolation type!')
+        # steps = 0
+        # for t in timing['Timer']:
+        #     steps += int(t * 8/50.0)
+
+        # xnew = np.linspace(0, l-1, num=steps, endpoint=True)
 
         fx = [self.mapp(f) for f in f2(xnew)]
 
         return fx
-        
+
         # Plotting
         # axes = plt.gca()
         # axes.set_ylim([1200, 3000])
@@ -606,7 +621,84 @@ class JimmyController(threading.Thread):
 
     def mapp(self, x):
         decimal.getcontext().prec=7
-        return (x - 512.0)/512.0 * 2.6       
+        return (x - 512.0)/512.0 * 2.6
+
+    # Ref: https://github.com/vmichals/python-algos/blob/master/catmull_rom_spline.py
+    def catmull_rom_one_point(self, x, v0, v1, v2, v3):
+        """Computes interpolated y-coord for given x-coord using Catmull-Rom.
+
+        Computes an interpolated y-coordinate for the given x-coordinate between
+        the support points v1 and v2. The neighboring support points v0 and v3 are
+        used by Catmull-Rom to ensure a smooth transition between the spline
+        segments.
+        Args:
+            x: the x-coord, for which the y-coord is needed
+            v0: 1st support point
+            v1: 2nd support point
+            v2: 3rd support point
+            v3: 4th support point
+        """
+        c1 = 1. * v1
+        c2 = -.5 * v0 + .5 * v2
+        c3 = 1. * v0 + -2.5 * v1 + 2. * v2 -.5 * v3
+        c4 = -.5 * v0 + 1.5 * v1 + -1.5 * v2 + .5 * v3
+        return (((c4 * x + c3) * x + c2) * x + c1)
+
+    def catmull_rom(self, p_x, p_y, res):
+        """Computes Catmull-Rom Spline for given support points and resolution.
+
+        Args:
+            p_x: array of x-coords
+            p_y: array of y-coords
+            res: resolution of a segment (including the start point, but not the
+                endpoint of the segment)
+        """
+        res = int(ceil(self.catmull_rom_res * res))
+        # res = self.catmull_rom_res
+        # create arrays for spline points
+        x_intpol = np.empty(res*(len(p_x)-1) + 1)
+        y_intpol = np.empty(res*(len(p_x)-1) + 1)
+
+        # set the last x- and y-coord, the others will be set in the loop
+        x_intpol[-1] = p_x[-1]
+        y_intpol[-1] = p_y[-1]
+
+        # loop over segments (we have n-1 segments for n points)
+        for i in range(len(p_x)-1):
+            # set x-coords
+            x_intpol[i*res:(i+1)*res] = np.linspace(
+                p_x[i], p_x[i+1], res, endpoint=False)
+            if i == 0:
+                # need to estimate an additional support point before the first
+                y_intpol[:res] = np.array([
+                    self.catmull_rom_one_point(
+                        x,
+                        p_y[0] - (p_y[1] - p_y[0]), # estimated start point,
+                        p_y[0],
+                        p_y[1],
+                        p_y[2])
+                    for x in np.linspace(0.,1.,res, endpoint=False)])
+            elif i == len(p_x) - 2:
+                # need to estimate an additional support point after the last
+                y_intpol[i*res:-1] = np.array([
+                    self.catmull_rom_one_point(
+                        x,
+                        p_y[i-1],
+                        p_y[i],
+                        p_y[i+1],
+                        p_y[i+1] + (p_y[i+1] - p_y[i]) # estimated end point
+                    ) for x in np.linspace(0.,1.,res, endpoint=False)])
+            else:
+                y_intpol[i*res:(i+1)*res] = np.array([
+                    self.catmull_rom_one_point(
+                        x,
+                        p_y[i-1],
+                        p_y[i],
+                        p_y[i+1],
+                        p_y[i+2]) for x in np.linspace(0.,1.,res, endpoint=False)])
+
+
+        return (x_intpol, y_intpol)
 
 def main(args):
     rospy.init_node('jimmy_controller_node_v2', anonymous=True)
@@ -616,4 +708,3 @@ def main(args):
 
 if __name__=="__main__":
     main(sys.argv)
-
