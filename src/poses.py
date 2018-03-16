@@ -229,9 +229,8 @@ class Poses2:
                     'PauseTime': 100
                     }
         try:
-
             for key, value in init_body.iteritems():
-                self.body[key] = value
+                self.body[key].insert(0, value)
         except AttributeError as ae:
             rospy.loginfo('WAT: {}'.format(init_body))
 

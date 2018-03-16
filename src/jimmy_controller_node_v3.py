@@ -100,6 +100,10 @@ class JimmyController(threading.Thread):
         self.right_sho_roll_enable = rospy.ServiceProxy(
             '/right_sho_roll/enable', Enable)
 
+        self.set_right_elbow_pitch_speed = rospy.ServiceProxy(
+            '/right_elbow_pitch/setSpeed', SetSpeed)
+
+
         rospy.wait_for_service('rebel_parser_server')
         self.rebel_parser = rospy.ServiceProxy('rebel_parser_server', Rebel)
 
@@ -189,7 +193,7 @@ class JimmyController(threading.Thread):
         # rospy.loginfo("Positions: %s" % position)
         # self.ready = False
         # self.enable_ready = True
-        while not self.ready and self.enable_ready:
+        if not self.ready and self.enable_ready:
             names = data.name
             # position = [self.pospos(x) for x in data.position]
             position = data.position
@@ -234,7 +238,7 @@ class JimmyController(threading.Thread):
             if not False in self.init_ready:
                 # rospy.loginfo("OK! I'm ready")
                 self.ready = True
-                break
+                
             else:
                 rospy.logwarn("Not all joints are ready. {}".format(self.init_ready))
 
