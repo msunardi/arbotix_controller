@@ -119,8 +119,9 @@ class JimmyController(threading.Thread):
         self.enable_ready = False
         self.add_initial = False # False: add initial pose, True: don't add initial pose
         self.pausemode = True  # False: hard stops, True: blended in interpolated data
-        self.interpolation_mode = 'cubic'
+        self.interpolation_mode = 'kb'
         self.catmull_rom_res = 50
+        self.kb_res = 20
 
         # self.write_to_file = True
         self.loglog = True
@@ -463,7 +464,7 @@ class JimmyController(threading.Thread):
                 #         print "Problem opening file %s\nCause: %s" % (file_pausetime, e)
                 if self.loglog and not self.pausemode:
                     rospy.loginfo("LOGLOG: PauseTime data: %s" % pause)
-
+                print("\n****NEW POSES****\n{}".format(new_poses))
                 # Execute all motion until finished
                 for i in range(posex_length):
                     mx = posex_length/p + 1
@@ -518,7 +519,7 @@ class JimmyController(threading.Thread):
             # return 0
 
     def chooseInterpolate(self, posex, timing, interp='cubic'):
-        if interp == 'cubic' or interp == 'lagrange' or interp=='linear':
+        if interp in ['cubic','lagrange','linear','kb']:
             return self.interpolate2(posex, timing, interp)
         # elif interp == 'linear':
         #     return self.interpolate(posex, timing)
@@ -526,6 +527,7 @@ class JimmyController(threading.Thread):
             return None
         else:
             raise ValueError("Invalid interpolation type")
+            rospy.signal_shutdown('Goodbye!')
 
 
     def getAction(self):
@@ -586,8 +588,10 @@ class JimmyController(threading.Thread):
         rospy.loginfo("Interpolate2 steps: %s" % steps)
         if interp == 'cubic' or interp == 'linear':
             f2 = interp1d(x,y, kind=interp)
+
         elif interp == 'lagrange':
             f2 = lagrange(x, y)
+
         elif interp == 'catmull-rom':
             x_intpol, y_intpol = self.catmull_rom(x, y, steps)
             # plt.figure()
@@ -595,8 +599,18 @@ class JimmyController(threading.Thread):
             # plt.plot(x_intpol, y_intpol)
             # plt.show()
             return [self.mapp(f) for f in y_intpol]
+
+        elif interp == 'kb':
+            x_intpol, y_intpol = self.kbinterp(x, y, 32)
+            # plt.figure()
+            # plt.scatter(x, y)
+            # plt.plot(x_intpol, y_intpol)
+            # plt.show()
+            return [self.mapp(f) for f in y_intpol]
+            
         else:
             raise ValueError('Invalid interpolation type!')
+            rospy.signal_shutdown('Goodbye!')
         # steps = 0
         # for t in timing['Timer']:
         #     steps += int(t * 8/50.0)
@@ -697,8 +711,104 @@ class JimmyController(threading.Thread):
                         p_y[i+1],
                         p_y[i+2]) for x in np.linspace(0.,1.,res, endpoint=False)])
 
+        return (x_intpol, y_intpol)
+
+    def kbinterp(self, p_x, p_y, res, t=[0.0], c=[0.0], b=[0.0]):
+        # res = int(ceil(self.kb_res * res))
+        
+        # create arrays for spline points
+        x_intpol = np.empty(res*(len(p_x)-1) + 1)
+        y_intpol = np.empty(res*(len(p_x)-1) + 1)
+
+        # set the last x- and y-coord, the others will be set in the loop
+        # x_intpol[0] = p_x[0]
+        # y_intpol[0] = p_y[0]
+        # x_intpol[-1] = p_x[-1]
+        # y_intpol[-1] = p_y[-1]
+
+        # Check tension, continuity, bias values; if only one, broadcast
+        # else, must have the same number as data points
+        if len(t) != len(p_x):
+            tension = np.full((len(p_x),), t[0])  # Fill with the first value of t
+        else:
+            tension = t
+        
+        if len(c) != len(p_x):
+            continuity = np.full((len(p_x),), c[0])
+        else:
+            continuity = c
+
+        if len(b) != len(p_x):
+            bias = np.full((len(p_x),), b[0])
+        else:
+            bias = b
+
+        # loop over segments (we have n-1 segments for n points)
+        for i in range(len(p_x)-1):
+            # set x-coords
+            x_intpol[i*res:(i+1)*res] = np.linspace(
+                p_x[i], p_x[i+1], res, endpoint=False)
+            if i == 0:
+                # need to estimate an additional support point before the first
+                y_intpol[:res] = np.array([
+                    self.kb_one_point(
+                        x,
+                        p_y[0] - (p_y[1] - p_y[0]), # estimated start point,
+                        p_y[0],
+                        p_y[1],
+                        p_y[2],
+                        tension[0],
+                        continuity[0],
+                        bias[0])
+                    for x in np.linspace(0.,1.,res, endpoint=False)])
+            elif i == len(p_x) - 2:
+                # need to estimate an additional support point after the last
+                y_intpol[i*res:-1] = np.array([
+                    self.kb_one_point(
+                        x,
+                        p_y[i-1],
+                        p_y[i],
+                        p_y[i+1],
+                        p_y[i+1] + (p_y[i+1] - p_y[i]),
+                        tension[-1],
+                        continuity[-1],
+                        bias[-1] # estimated end point
+                    ) for x in np.linspace(0.,1.,res, endpoint=False)])
+            else:
+                y_intpol[i*res:(i+1)*res] = np.array([
+                    self.kb_one_point(
+                        x,
+                        p_y[i-1],
+                        p_y[i],
+                        p_y[i+1],
+                        p_y[i+2],
+                        tension[i],
+                        continuity[i],
+                        bias[i]) for x in np.linspace(0.,1.,res, endpoint=False)])
 
         return (x_intpol, y_intpol)
+
+    def kb_one_point(self, x, v0, v1, v2, v3, t, c, b):
+        """Computes interpolated y-coord for given x-coord for Kochanek Bartels.
+
+        Computes an interpolated y-coordinate for the given x-coordinate between
+        the support points v1 and v2. The neighboring support points v0 and v3 are
+        used by Catmull-Rom to ensure a smooth transition between the spline
+        segments.
+        Args:
+            x: the x-coord, for which the y-coord is needed
+            v0: 1st support point
+            v1: 2nd support point
+            v2: 3rd support point
+            v3: 4th support point
+        """
+        TSi = 0.5*((1-t)*(1-c)*(1+b)*(v2 - v1) + (1-t)*(1+c)*(1-b)*(v3 - v2))
+        TDi = 0.5*((1-t)*(1+c)*(1+b)*(v1 - v0) + (1-t)*(1-c)*(1-b)*(v2 - v1))
+        C = np.array([v1, v2, TDi, TSi])
+        S = np.array([x**3, x**2, x, 1])
+        H = np.matrix([[2, -2, 1, 1], [-3, 3, -2, -1], [0, 0, 1, 0], [1, 0, 0, 0]])
+        result = C * (S * H).T
+        return result[0,0]
 
 def main(args):
     rospy.init_node('jimmy_controller_node_v2', anonymous=True)
