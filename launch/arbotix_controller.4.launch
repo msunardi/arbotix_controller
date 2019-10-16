@@ -1,0 +1,8 @@
+<launch>
+  <node name="arbotix" pkg="arbotix_python" type="arbotix_driver" output="screen">
+      <rosparam file="$(find arbotix_controller)/launch/arbotix_config.2.yaml" command="load" />
+  </node>
+  <node name="rebel" pkg="rebel_ros" type="rebel_server.py" />
+  <!-- main node -->
+  <node name="jimmy" pkg="arbotix_controller" type="jimmy_controller_node_v7.py" />
+</launch>
