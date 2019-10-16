@@ -10,6 +10,7 @@ import ast
 from scipy.interpolate import interp1d, lagrange
 import numpy as np
 import matplotlib.pyplot as plt
+import pywt
 
 import rospy
 import rospkg
@@ -114,14 +115,17 @@ class JimmyController(threading.Thread):
         self.pages = None
         self.poses = None
         self.poseTitle = "Default"
-        self.init_ready = [False]*8
+        self.init_ready = [False, False, False, False, False, False, False, False]
         self.ready = False
         self.enable_ready = False
         self.add_initial = False # False: add initial pose, True: don't add initial pose
         self.pausemode = True  # False: hard stops, True: blended in interpolated data
         self.interpolation_mode = 'kb'
         self.catmull_rom_res = 50
-        self.kb_res = 50
+        self.kb_res = 12
+
+        # Multiresolution Filtering Parameters
+        # self.kernel = pywt.Wavelet('db5')
 
         # self.write_to_file = True
         self.loglog = True
@@ -145,7 +149,7 @@ class JimmyController(threading.Thread):
         self.action = []
 
         threading.Thread.__init__(self)
-        self.sleeper = rospy.Rate(50)
+        self.sleeper = rospy.Rate(19.75)
 
     def relax_servos(self):
         self.head_pan_relax()
@@ -276,12 +280,33 @@ class JimmyController(threading.Thread):
         flag = False
         n = 0
 
+        new_poses = {}
+        posex_length = 0
 
-        while not rospy.is_shutdown():
+        while True and not rospy.is_shutdown():
+            # rospy.logdebug("FOO")
+            # nn = np.random.randn()
+            # if nn > 1.0:
+            # rospy.loginfo("Random {}".format(nn))
+            pow = rospy.get_time()
+            for joint, pub in self.joints.iteritems():
+                rospy.loginfo("Looping ... ")
+                g = np.random.choice([-1, 1]) * 0.05
+                if 'R_' in joint:
+                    gpos = 0.1 * np.sin(1.2*pow) + 0.1 * np.cos(1.2*pow + 0.21)
+                elif 'L_' in joint:
+                    gpos = 0.1 * np.cos(1.2*pow) + 0.1 * np.sin(1.2*pow + 0.2)
+                elif '_PAN' in joint:
+                    if rospy.get_time() - pow > np.random.normal(loc=5.0, scale=2.0):
+                        gpos = np.sin(0.05 * pow)
+                # else:
+                #     gpos = 0.05*np.cos(pow)
+
+                pub.publish(Float64(gpos))  # Return to home 
 
             # Wait until initial pose is captured
-            if not self.ready:
-                rospy.loginfo("Not ready ...")
+            if not self.ready and posex_length == 0:
+                rospy.loginfo("Is Not ready ...")                          
                 continue
 
             if l > 1:
@@ -314,8 +339,8 @@ class JimmyController(threading.Thread):
             poses = xposes.getPoses()   # Load poses
             timing = xposes.getTiming()
 
-            new_poses = {}
-            posex_length = 0
+            # new_poses = {}
+            # posex_length = 0
 
             if self.ready:
                 rospy.loginfo("Going to do %s!!!" % xposes.getTitle())
@@ -377,15 +402,19 @@ class JimmyController(threading.Thread):
 
                     # # Version 1.5
                     if self.pausemode:
+                        frame_constant = 8.0
+                        if self.interpolation_mode == 'kb':
+                            frame_constant = 4.0
                         posex = []
                         timer = []
                         pauses = timing['PauseTime']
                         for m in range(len(timing['PauseTime'])):
                             # The number of frames to embed = PauseTime/100
                             # steps = _timer[m] * 8.0/50
-                            steps = _timer[m] * 4.0/50
+                            steps = _timer[m] * frame_constant/50
                             # mult = int((round(pauses[m]/100.0)-1))
-                            mult = int(round(pauses[m] / (3 * steps)))
+                            # mult = int(round(pauses[m] / (3 * steps)))
+                            mult = max(int(round(pauses[m] / (3 * steps)))//2, 1)
                             posex += [[_posex[m]] + [_posex[m]]*mult]
                             timer += [[_timer[m]] + [_timer[m]]*mult]
                         posex = [f for s in posex for f in s]
@@ -467,7 +496,7 @@ class JimmyController(threading.Thread):
                     rospy.loginfo("LOGLOG: PauseTime data: %s" % pause)
                 print("\n****NEW POSES****\n{}".format(new_poses))
                 # Execute all motion until finished
-                # for i in range(posex_length-1):
+                for i in range(posex_length-1):
                     mx = posex_length/p + 1
 
                     # Uncomment to move step by step
@@ -496,8 +525,24 @@ class JimmyController(threading.Thread):
 
                     # Quit/immediately stop if interrupted
                     if not self.ready:
-                        break
+                        rospy.signal_shutdown('Interrupted')
 
+                
+                pow = rospy.get_time()
+                for joint, pub in self.joints.iteritems():
+                    g = np.random.choice([-1, 1]) * 0.05
+                    if 'R_SHO_PITCH' in joint:
+                        gpos = 0.05 * np.sin(pow) + 0.02*np.sin(pow + g)
+                    elif 'L_SHO_PITCH' in joint:
+                        gpos = 0.05 * np.cos(pow) + 0.02*np.cos(pow + g)
+                    elif '_PAN' in joint:
+                        if rospy.get_time() - pow > np.random.normal(loc=5.0, scale=2.0):
+                            gpos = np.sin(0.05 * pow) + np.random.normal(loc=0.0, scale=0.01)
+                    else:
+                        gpos = np.random.normal(loc=0.0, scale=0.03) * np.cos(pow) + 0.02*np.sin(pow + g)
+
+                    pub.publish(Float64(gpos))  # Return to home  
+            
             # if self.write_to_file:
             #     try:
             #         if not interpolate_fh.closed:
@@ -511,7 +556,7 @@ class JimmyController(threading.Thread):
             #         rospy.loginfo("Having problems closing files!")
             #         print "Having problems closing files!"
 
-
+            posex_length = 0
             self.ready = False
             self.pages = None
             self.poses = None
@@ -575,7 +620,7 @@ class JimmyController(threading.Thread):
         print "%s (%s)" % (fb, len(fb))
         return fb
 
-    def interpolate2(self, fubar, timing, interp):
+    def interpolate2(self, fubar, timing, interp, mrf=True):
         l = len(fubar)
         x = np.linspace(0, l-1, num=l, endpoint=True)
         y = fubar
@@ -607,7 +652,11 @@ class JimmyController(threading.Thread):
             # plt.scatter(x, y)
             # plt.plot(x_intpol, y_intpol)
             # plt.show()
-            return [self.mapp(f) for f in y_intpol]
+            result = [self.mapp(f) for f in y_intpol]
+            result += [0.0]
+            if mrf:  # Apply MRF if flagged
+                return self.wavedef(result)
+            return result
             
         else:
             raise ValueError('Invalid interpolation type!')
@@ -810,6 +859,25 @@ class JimmyController(threading.Thread):
         H = np.matrix([[2, -2, 1, 1], [-3, 3, -2, -1], [0, 0, 1, 0], [1, 0, 0, 0]])
         result = C * (S * H).T
         return result[0,0]
+
+    def wavedef(self, data, kernel='db5', mode='simple'):
+
+        kern = pywt.Wavelet(kernel)
+        coeffs = pywt.wavedec(data, kern)
+        
+        # depth
+        k = len(coeffs)
+        coeffs_to_save = k//2
+        
+        # Only keep the first half - turn the bottom half to zero
+        for j in range(k):
+            if j == coeffs_to_save:
+                coeffs[j] = abs(np.random.normal(loc=0.0, scale=0.5)) * coeffs[j]
+            if j > coeffs_to_save + 1:
+                coeffs[j] = np.multiply(0.0, coeffs[j])
+        
+        reconstruct = pywt.waverec(coeffs, kern)
+        return reconstruct
 
 def main(args):
     rospy.init_node('jimmy_controller_node_v2', anonymous=True)
