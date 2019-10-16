@@ -121,7 +121,7 @@ class JimmyController(threading.Thread):
         self.pausemode = True  # False: hard stops, True: blended in interpolated data
         self.interpolation_mode = 'kb'
         self.catmull_rom_res = 50
-        self.kb_res = 20
+        self.kb_res = 50
 
         # self.write_to_file = True
         self.loglog = True
@@ -382,7 +382,8 @@ class JimmyController(threading.Thread):
                         pauses = timing['PauseTime']
                         for m in range(len(timing['PauseTime'])):
                             # The number of frames to embed = PauseTime/100
-                            steps = _timer[m] * 8.0/50
+                            # steps = _timer[m] * 8.0/50
+                            steps = _timer[m] * 4.0/50
                             # mult = int((round(pauses[m]/100.0)-1))
                             mult = int(round(pauses[m] / (3 * steps)))
                             posex += [[_posex[m]] + [_posex[m]]*mult]
@@ -466,7 +467,7 @@ class JimmyController(threading.Thread):
                     rospy.loginfo("LOGLOG: PauseTime data: %s" % pause)
                 print("\n****NEW POSES****\n{}".format(new_poses))
                 # Execute all motion until finished
-                for i in range(posex_length):
+                # for i in range(posex_length-1):
                     mx = posex_length/p + 1
 
                     # Uncomment to move step by step
@@ -713,7 +714,7 @@ class JimmyController(threading.Thread):
 
         return (x_intpol, y_intpol)
 
-    def kbinterp(self, p_x, p_y, res, t=[0.0], c=[0.0], b=[0.0]):
+    def kbinterp(self, p_x, p_y, res, t=[0.0], c=[1.0], b=[1.0]):
         # res = int(ceil(self.kb_res * res))
         
         # create arrays for spline points
