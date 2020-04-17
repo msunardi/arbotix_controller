@@ -68,6 +68,9 @@ class JimmyController(threading.Thread):
         # Change interpolation mode: 'kb', 'cubic', 'linear'
         rospy.Subscriber('/interpolate_mode', String, self.interpolate_mode_callback)
 
+        # Entry to modify KB interpolation params. Format (floats) 'tension,bias,continutiy'
+        rospy.Subscriber('/kb_params', String, self.kbparams_callback)
+
         # Toggle Multiresolution Filtering
         rospy.Subscriber('/multires_filtering', Bool, self.mrf_callback)
 
@@ -180,6 +183,7 @@ class JimmyController(threading.Thread):
 
         self.catmull_rom_res = 50
         self.kb_res = 16# 32
+        self.kb_params = {'t':0.0, 'b':0.0, 'c':0.0}
 
         self.after_motion = True
         self.gesture_command = False
@@ -325,7 +329,7 @@ class JimmyController(threading.Thread):
             pass
 
     def set_slopes(self):
-        slope = 0.5
+        slope = 0.75
         try:
             self.head_pan_set_slope_ccw(slope)
             self.head_pan_set_slope_cw(slope)
@@ -495,6 +499,14 @@ class JimmyController(threading.Thread):
         rospy.loginfo("[interpolate_mode_callback] change to: {}".format(mode_data))
         if mode_data in ['linear', 'cubic', 'kb']:
             self.interpolation_mode = mode_data
+
+    def kbparams_callback(self, params):
+        '''Expected format (floats) 'tension,bias,continutiy'
+            e.g. '0.0,1.0,2.0' -> tension = 0.0, bias = 1.0, cont. = 2.0
+        '''
+        t, b, c = [float(i) for i in params.data.split(',')]
+        self.kb_params = {'t': t, 'b': b, 'c': c}
+        rospy.loginfo("[kbparams_callback] New KB params: {}".format(self.kb_params))
 
     def mrf_callback(self, mode):
         mode_data = mode.data
@@ -948,7 +960,11 @@ class JimmyController(threading.Thread):
         elif interp == 'kb':
             if len(x) <= 0 or len(y) <= 0:
                 return fubar
-            x_intpol, y_intpol = self.kbinterp(x, y, self.kb_res)  # kbres=32 seems to work well
+
+            t = [self.kb_params['t']]
+            b = [self.kb_params['b']]
+            c = [self.kb_params['c']]
+            x_intpol, y_intpol = self.kbinterp(x, y, self.kb_res, t=t, b=b, c=c)  # kbres=32 seems to work well
             # plt.figure()
             # plt.scatter(x, y)
             # plt.plot(x_intpol, y_intpol)
@@ -986,7 +1002,7 @@ class JimmyController(threading.Thread):
 
     def mapp(self, x):
         decimal.getcontext().prec=7
-        return (x - 512.0)/512.0 * 2.6
+        return (x - 512.0)/512.0 * 2.8
 
     # Ref: https://github.com/vmichals/python-algos/blob/master/catmull_rom_spline.py
     # def catmull_rom_one_point(self, x, v0, v1, v2, v3):
