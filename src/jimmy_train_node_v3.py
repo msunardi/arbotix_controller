@@ -58,8 +58,7 @@ class JimmyTrainer(threading.Thread):
         self.right_sho_roll.acceleration = 1.0
 
         self.right_sho_pitch = MotorCommand()
-        self.right_sho_pitchself.right_elbow_relax = rospy.ServiceProxy(
-            '/right_elbow/relax', Relax)   .joint_name = 'right_shoulder_pitch_joint'
+        self.right_sho_pitch.joint_name = 'right_shoulder_pitch_joint'
         self.right_sho_pitch.speed = 1.0
         self.right_sho_pitch.acceleration = 1.0
 
