@@ -2,35 +2,36 @@ port: /dev/ttyUSB0
 read_rate: 15
 write_rate: 25
 rate: 100
+baud: 1000000
 joints: {
     head_pan_joint: {
-        id: 19, 
-        invert: false, 
-        neutral: 512, 
+        id: 19,
+        invert: false,
+        neutral: 512,
         max_speed: 200,
         max_angle: 100,
         min_angle: -100
         },
     head_tilt_joint: {
-        id: 20, 
+        id: 20,
         max_speed: 200,
         max_angle: 100,
         min_angle: -100
         },
     right_sho_pitch: {
-        id: 1, 
+        id: 1,
         max_speed: 200,
         max_angle: 90,
         min_angle: -90
         },
     right_sho_roll: {
-        id: 3, 
+        id: 3,
         max_speed: 200,
         max_angle: 100,
         min_angle: -100
         },
     right_elbow: {
-        id: 5, 
+        id: 5,
         max_speed: 200,
         max_angle: 80,
         min_angle: -80
@@ -43,19 +44,19 @@ joints: {
         neutral: 512
     },
     left_sho_pitch: {
-        id: 2, 
+        id: 2,
         max_speed: 200,
         max_angle: 90,
         min_angle: -90
         },
     left_sho_roll: {
-        id: 4, 
+        id: 4,
         max_speed: 200,
         max_angle: 100,
         min_angle: -100
         },
     left_elbow: {
-        id: 6, 
+        id: 6,
         max_speed: 200,
         max_angle: 80,
         min_angle: -80
@@ -70,7 +71,7 @@ joints: {
 }
 controllers: {
     head_controller: {
-        type: follow_controller, 
+        type: follow_controller,
         joints: [head_pan_joint ,head_tilt_joint,
         right_sho_pitch, right_sho_roll, right_elbow, right_elbow_twist,
         left_sho_pitch, left_sho_roll, left_elbow, left_elbow_twist],

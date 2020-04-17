@@ -2,7 +2,7 @@ from collections import defaultdict
 import rospy
 
 class Poses:
-    def __init__(self):
+    def __init__(self, page=None):
         self.body = {'R_SHO_PITCH': None,
                     'L_SHO_PITCH': None,
                     'R_SHO_ROLL': None,
@@ -29,6 +29,8 @@ class Poses:
                     'PauseTime': None
                     }
         self.title = "Default"
+        if page:
+            self.loadPage(page)
 
     def loadPage(self, page):
 
@@ -106,7 +108,10 @@ class Poses:
                     'PauseTime': 100
                     }
         for key, value in init_body.iteritems():
-            self.body[key].insert(0, value)
+            if self.body[key] == None:
+                self.body[key] = [value]
+            else:
+                self.body[key].insert(0, value)
 
         for key, value in i_timing.iteritems():
             self.timing[key].insert(0, value)
