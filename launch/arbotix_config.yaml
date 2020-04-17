@@ -1,6 +1,7 @@
 port: /dev/ttyUSB0
 read_rate: 15
 write_rate: 25
+baud: 1000000
 joints: {
     head_pan_joint: {id: 19, invert: false, neutral: 512, max_speed: 200},
     head_tilt_joint: {id: 20, max_speed: 200},
@@ -13,7 +14,7 @@ joints: {
 }
 controllers: {
     head_controller: {
-        type: follow_controller, 
+        type: follow_controller,
         joints: [head_pan_joint ,head_tilt_joint,
         right_sho_pitch, right_sho_roll, right_elbow,
         left_sho_pitch, left_sho_roll, left_elbow],

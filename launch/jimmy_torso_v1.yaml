@@ -1,0 +1,23 @@
+port: /dev/ttyUSB0
+read_rate: 15
+write_rate: 25
+baud: 1000000
+joints: {
+    head_pan_joint: {id: 19, invert: false, neutral: 512, max_speed: 100, max_torque: 128},
+    head_tilt_joint: {id: 20, max_speed: 100, max_torque: 128},
+    right_sho_pitch: {id: 1, max_speed: 100, max_torque: 128},
+    right_sho_roll: {id: 3, max_speed: 100, max_torque: 128},
+    right_elbow_pitch: {id: 5, max_speed: 100, max_torque: 128},
+    left_sho_pitch: {id: 2, max_speed: 100, max_torque: 128},
+    left_sho_roll: {id: 4, max_speed: 100, max_torque: 128},
+    left_elbow_pitch: {id: 6, max_speed: 100, max_torque: 128}
+}
+controllers: {
+    head_controller: {
+        type: follow_controller,
+        joints: [head_pan_joint ,head_tilt_joint,
+        right_sho_pitch, right_sho_roll, right_elbow_pitch,
+        left_sho_pitch, left_sho_roll, left_elbow_pitch],
+        action_name: head_controller/follow_joint_trajectory,
+    }
+}

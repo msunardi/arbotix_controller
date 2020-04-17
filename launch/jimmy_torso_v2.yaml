@@ -1,6 +1,7 @@
 port: /dev/ttyUSB0
 read_rate: 15
 write_rate: 25
+baud: 1000000
 joints: {
     head_pan_joint: {id: 19, invert: false, neutral: 512, max_speed: 200},
     head_tilt_joint: {id: 20, max_speed: 200},
