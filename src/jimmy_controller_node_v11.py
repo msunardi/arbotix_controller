@@ -52,7 +52,7 @@ class JimmyController(threading.Thread):
         self.left_elbow = rospy.Publisher('/left_elbow/command', Float64, queue_size=1)
         self.left_elbow_twist = rospy.Publisher('/left_elbow_twist/command', Float64, queue_size=1)
 
-        # Subscribers
+        # Subscribers for commands
         # Arbotix joint states
         rospy.Subscriber('/joint_states', JointState, self.joint_callback)
 
@@ -62,20 +62,25 @@ class JimmyController(threading.Thread):
         # Page entry point - play a saved page
         rospy.Subscriber('/play_page', String, self.page_callback)
 
-        # Interrupt any process and quit
-        rospy.Subscriber('/interrupt', Bool, self.interrupt_callback)
-
+        # Parameter settings
         # Change interpolation mode: 'kb', 'cubic', 'linear'
         rospy.Subscriber('/interpolate_mode', String, self.interpolate_mode_callback)
 
         # Entry to modify KB interpolation params. Format (floats) 'tension,bias,continutiy'
         rospy.Subscriber('/kb_params', String, self.kbparams_callback)
 
+        # System toggles
+        # Interrupt any process and quit
+        rospy.Subscriber('/interrupt', Bool, self.interrupt_callback)
+
         # Toggle Multiresolution Filtering
         rospy.Subscriber('/multires_filtering', Bool, self.mrf_callback)
 
         # Toggle Idle animation
         rospy.Subscriber('/idle_mode', Bool, self.idle_callback)
+
+        # Togglel plotting data
+        rospy.Subscriber('/plot', Bool, self.plot_callback)
 
         # Dynamixel/Arbotix services
         # Services to turn servos off
@@ -183,7 +188,6 @@ class JimmyController(threading.Thread):
 
         self.catmull_rom_res = 50
         self.kb_res = 16# 32
-        self.kb_params = {'t':0.0, 'b':0.0, 'c':0.0}
 
         self.after_motion = True
         self.gesture_command = False
@@ -195,8 +199,21 @@ class JimmyController(threading.Thread):
 
         # Adjustable params
         self.interpolation_mode = 'kb'
+        self.kb_params = {'t':0.0, 'b':0.0, 'c':0.0}
         self.use_mrf = True
         self.use_idle = True
+        self.plot_data = True
+        self.slope_val = 0.6
+
+        rospy.loginfo("Default params:\nkb_res: {}\ninterpolation mode: {}\nkb_params: {}\nuse_mrf: {}\nuse_idle: {}\nplot_data: {}\nslope: {}".format(
+                          self.kb_res,
+                          self.interpolation_mode,
+                          self.kb_params,
+                          self.use_mrf,
+                          self.use_idle,
+                          self.plot_data,
+                          self.slope_val
+                      ))
 
         rospy.loginfo("Setting up JimmyController ...")
 
@@ -329,8 +346,9 @@ class JimmyController(threading.Thread):
             pass
 
     def set_slopes(self):
-        slope = 0.75
+        slope = self.slope_val
         try:
+            rospy.loginfo("Settings slope to: %s" % slope)
             self.head_pan_set_slope_ccw(slope)
             self.head_pan_set_slope_cw(slope)
             self.left_elbow_set_slope_ccw(slope)
@@ -513,10 +531,10 @@ class JimmyController(threading.Thread):
         rospy.loginfo("[mrf_callback] change to: {}use mrf".format("" if mode_data else "not "))
         self.use_mrf = mode_data
 
-    # def idle_callback(self, mode):
-    #     mode_data = mode.data
-    #     rospy.loginfo("[mrf_callback] change to: {}use mrf".format("" if mode_data else "not "))
-    #     self.use_mrf = mode_data
+    def plot_callback(self, mode):
+        plot_data = mode.data
+        rospy.loginfo("[plot_callback] change to: {}plot".format("yes, " if mode_data else "not "))
+        self.plot_data = plot_data
 
     def pospos(self, x):
         # Convert joint_pos from -2.6 - 2.6 to 0 - 1020
@@ -965,10 +983,13 @@ class JimmyController(threading.Thread):
             b = [self.kb_params['b']]
             c = [self.kb_params['c']]
             x_intpol, y_intpol = self.kbinterp(x, y, self.kb_res, t=t, b=b, c=c)  # kbres=32 seems to work well
-            # plt.figure()
-            # plt.scatter(x, y)
-            # plt.plot(x_intpol, y_intpol)
-            # plt.show()
+            if self.plot_data:
+                y_intpol_mapp = [self.mapp(f) for f in y_intpol]
+                yy = [self.mapp(yt) for yt in y]
+                plt.figure()
+                plt.scatter(x, yy)
+                plt.plot(x_intpol, y_intpol_mapp)
+                plt.show()
             result = [self.mapp(f) for f in y_intpol]
             result += [0.0]
             if mrf:  # Apply MRF if flagged
@@ -985,7 +1006,17 @@ class JimmyController(threading.Thread):
         # xnew = np.linspace(0, l-1, num=steps, endpoint=True)
 
         fx = [self.mapp(f) for f in f2(xnew)]
-        fx = self.wavedef(fx)
+        yy = [self.mapp(yt) for yt in y]
+
+        if self.use_mrf:
+            fx = self.wavedef(fx)
+
+        if self.plot_data:
+            plt.figure()
+            plt.scatter(x, yy)
+            plt.plot(xnew, fx)
+            plt.show()
+
         return fx
 
         # Plotting
