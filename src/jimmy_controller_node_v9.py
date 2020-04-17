@@ -70,7 +70,7 @@ class JimmyController(threading.Thread):
 
         # Toggle Idle animation
         rospy.Subscriber('/idle_mode', Bool, self.idle_callback)
-        
+
         # Dynamixel/Arbotix services
         # Services to turn servos off
         self.head_pan_relax = rospy.ServiceProxy(
@@ -174,9 +174,9 @@ class JimmyController(threading.Thread):
         self.enable_ready = False
         self.add_initial = False # False: add initial pose, True: don't add initial pose
         self.pausemode = True  # False: hard stops, True: blended in interpolated data
-        
+
         self.catmull_rom_res = 50
-        self.kb_res = 24
+        self.kb_res = 32
 
         self.after_motion = True
         self.gesture_command = False
@@ -271,7 +271,7 @@ class JimmyController(threading.Thread):
         self.set_speed('max')
 
     def set_speed(self, s='slow'):  # 7 = slow, 20+ = fast
-        speeds = {'slow': 10, 'max': 200}
+        speeds = {'slow': 5, 'max': 200}
         spd = speeds[s]
         self.head_pan_set_speed(spd)
         self.head_tilt_set_speed(spd)
@@ -283,6 +283,11 @@ class JimmyController(threading.Thread):
         self.right_elbow_twist_set_speed(spd)
         self.right_sho_pitch_set_speed(spd)
         self.right_sho_roll_set_speed(spd)
+        wait_time = min(3.0, abs(np.random.normal(loc=3.0, scale=2)))
+        print("Waiting {} to set speed ...".format(wait_time))
+        while rospy.get_time() - self.idle_time < wait_time:
+
+            continue
 
    # CALLBACKS
     def joint_callback(self, data):
@@ -382,7 +387,7 @@ class JimmyController(threading.Thread):
         '''
         # Reload the motion file if new gesture is given
         if self.gesture_command:
-            return 
+            return
         rospy.loginfo("[idle_callback] Got new gesture: %s" % gesture.data)
         print "Greeting.data: %s" % gesture.data
         get = self.rebel_parser(gesture.data)
@@ -424,6 +429,9 @@ class JimmyController(threading.Thread):
     def resetPose(self):
         rospy.loginfo("***ResetPoses***")
         self.set_speed('slow')
+        wait_time = abs(np.random.normal(loc=2.0, scale=1))
+        while rospy.get_time() - self.idle_time < wait_time:
+            continue
         for joint, pub in self.joints.items():
             # pub.publish(Float64(self.joint_pos[joint]))
             pub.publish(Float64(0.0))
@@ -463,14 +471,30 @@ class JimmyController(threading.Thread):
         wait_time = abs(np.random.normal(loc=3.0, scale=2))
         while rospy.get_time() - self.idle_time < wait_time:
             rospy.loginfo("Listening for commands...")
+            pow = rospy.get_time()
+            for joint, pub in self.joints.iteritems():
+                rospy.loginfo("Waiting ... {}".format(joint))
+                g = np.random.choice([-1, 1]) * 0.05
+                if 'R_' in joint:
+                    gpos = 0.05 * (np.sin(1.2*pow) + np.cos(1.2*pow + 0.21))
+                elif 'L_' in joint:
+                    gpos = -0.05 * (np.cos(1.2*pow) + np.sin(1.2*pow + 0.2))
+                elif '_PAN' in joint:
+                    if rospy.get_time() - pow > np.random.normal(loc=5.0, scale=2.0):
+                        gpos = 0.1* np.sin(0.05 * pow)
+                # else:
+                #     gpos = 0.05*np.cos(pow)
+
+                pub.publish(Float64(gpos))  # Return to home
+
         else:
             rospy.loginfo("Boring ...")
             wait = String()
             action = np.random.choice(['waiting', 'wave2','muscle_flex'])
-            wait.data = 'waiting'
-            self.idle_callback(wait)
+            # wait.data = 'waiting'
+            # self.idle_callback(wait)
             self.idle_time = rospy.get_time()
-        
+
         # self.left_elbow_twist.publish(Float64(0.0))
         # self.right_elbow_twist.publish(Float64(0.0))
 
@@ -488,7 +512,7 @@ class JimmyController(threading.Thread):
 
         new_poses = {}
         posex_length = 0
-        
+
 
         while not rospy.is_shutdown():
             if self.ready and self.after_motion and not self.gesture_command:
@@ -710,7 +734,7 @@ class JimmyController(threading.Thread):
                         rospy.signal_shutdown('Interrupted')
 
                 self.resetPose()
-                self.relax_servos()
+                # self.relax_servos()
                 then = rospy.get_time()
                 while rospy.get_time() - then < 1.5:
                     pass
@@ -719,7 +743,7 @@ class JimmyController(threading.Thread):
                 self.after_motion = True
                 if self.gesture_command:
                     self.gesture_command = False
-            
+
             # if self.write_to_file:
             #     try:
             #         if not interpolate_fh.closed:
@@ -732,9 +756,9 @@ class JimmyController(threading.Thread):
             #     except IOError:
             #         rospy.loginfo("Having problems closing files!")
             #         print "Having problems closing files!"
-            
+
             else:
-                rospy.loginfo("Is Not ready ...") 
+                rospy.loginfo("Is Not ready ...")
                 # if self.after_motion:
                 #     self.doIdle()
 
@@ -815,8 +839,15 @@ class JimmyController(threading.Thread):
 
         xnew = np.linspace(0, l-1, num=steps, endpoint=True)
         rospy.loginfo("Interpolate2 steps: %s" % steps)
+
+        if steps == 0:
+            rospy.logwarn("[interpolate2]: steps: {}".format(steps))
         if interp == 'cubic' or interp == 'linear':
-            f2 = interp1d(x,y, kind=interp)
+            try:
+                f2 = interp1d(x,y, kind=interp)
+            except ValueError as ve:
+                rospy.logerr("[interpolate2]: {}".format(ve))
+                return []
 
         elif interp == 'lagrange':
             f2 = lagrange(x, y)
@@ -842,7 +873,7 @@ class JimmyController(threading.Thread):
             if mrf:  # Apply MRF if flagged
                 return self.wavedef(result)
             return result
-            
+
         else:
             raise ValueError('Invalid interpolation type!')
             rospy.signal_shutdown('Goodbye!')
@@ -853,7 +884,7 @@ class JimmyController(threading.Thread):
         # xnew = np.linspace(0, l-1, num=steps, endpoint=True)
 
         fx = [self.mapp(f) for f in f2(xnew)]
-
+        fx = self.wavedef(fx)
         return fx
 
         # Plotting
@@ -950,7 +981,7 @@ class JimmyController(threading.Thread):
 
     def kbinterp(self, p_x, p_y, res, t=[0.0], c=[0.0], b=[0.0]):
         # res = int(ceil(self.kb_res * res))
-        
+
         # create arrays for spline points
         x_intpol = np.empty(res*(len(p_x)-1) + 1)
         y_intpol = np.empty(res*(len(p_x)-1) + 1)
@@ -967,7 +998,7 @@ class JimmyController(threading.Thread):
             tension = np.full((len(p_x),), t[0])  # Fill with the first value of t
         else:
             tension = t
-        
+
         if len(c) != len(p_x):
             continuity = np.full((len(p_x),), c[0])
         else:
@@ -1050,23 +1081,25 @@ class JimmyController(threading.Thread):
 
         kern = pywt.Wavelet(kernel)
         coeffs = pywt.wavedec(data, kern)
-        
+
         # depth
         k = len(coeffs)
         coeffs_to_save = k//2
 
         # modifier
-        alpha = {0: 1.0, 1: 1.0, 2: 1.3}
-        
+        alpha = {0: 1.0, 1: 1.0, 2: 1.0, 5: 1.5}
+
         # Only keep the first half - turn the bottom half to zero
         for j in range(k):
             if j == coeffs_to_save:
                 coeffs[j] = abs(np.random.normal(loc=0.0, scale=0.5)) * coeffs[j]
             if j > coeffs_to_save + 1:
-                coeffs[j] = np.multiply(0.0, coeffs[j])
+                coeffs[j] = np.multiply(1.2, coeffs[j])
             if j in alpha.keys():
                 coeffs[j] *= alpha[j]
-        
+            else:
+                coeffs[j] *= 1.2
+
         reconstruct = pywt.waverec(coeffs, kern)
         return reconstruct
 
