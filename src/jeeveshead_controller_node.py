@@ -4,6 +4,7 @@ import random as r
 import xml.etree.ElementTree as etree
 import decimal
 from math import *
+import ast
 from collections import deque
 
 from scipy.interpolate import interp1d, lagrange
@@ -16,8 +17,9 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Float32, Float64, String
 
 from arbotix_msgs.srv import *
+from rebel_ros.srv import *
 
-from poses import Poses
+from poses import Poses, JeevesHeadPoses
 
 
 class JeevesHeadController(threading.Thread):
@@ -40,8 +42,6 @@ class JeevesHeadController(threading.Thread):
         # REBeL entry point - send a REBeL expression to this topic
         rospy.Subscriber('/gesture_command', String, self.gesture_callback)
 
-        rospy.Subscriber('/gesture_command', String, self.gesture_callback)
-
         # Services
         self.tilt_right_relax = rospy.ServiceProxy(
             '/tilt_right/relax', Relax)
@@ -57,7 +57,7 @@ class JeevesHeadController(threading.Thread):
         self.pan_enable = rospy.ServiceProxy(
             '/pan/enable', Enable)
 
-        self.tilt_right_slope_cw = rospy.ServiceProxy('/tilt_right/set_compliance_slope_cw', ComplianceSlopeCW)
+        self.tilt_right_set_slope_cw = rospy.ServiceProxy('/tilt_right/set_compliance_slope_cw', ComplianceSlopeCW)
         self.tilt_right_set_slope_ccw = rospy.ServiceProxy('/tilt_right/set_compliance_slope_ccw', ComplianceSlopeCCW)
 
         self.tilt_left_set_slope_cw = rospy.ServiceProxy('/tilt_left/set_compliance_slope_cw', ComplianceSlopeCW)
@@ -67,8 +67,8 @@ class JeevesHeadController(threading.Thread):
         self.pan_set_slope_ccw = rospy.ServiceProxy('/pan/set_compliance_slope_ccw', ComplianceSlopeCCW)
 
         # REBeL service
-        rospy.wait_for_service('rebel_parser_server')
-        self.rebel_parser = rospy.ServiceProxy('rebel_parser_server', Rebel)
+        rospy.wait_for_service('jeeves_rebel_server')
+        self.rebel_parser = rospy.ServiceProxy('jeeves_rebel_server', Rebel)
 
         self.joints = {'TILT_LEFT': self.tilt_left_pub,
             'TILT_RIGHT': self.tilt_right_pub,
@@ -81,20 +81,21 @@ class JeevesHeadController(threading.Thread):
         self.init_ready = [False, False, False]
         self.ready = False
         self.enable_ready = False
-        # self.ready = False
-        # self.enable_ready = False
+        self.poses = None
+        self.poseTitle = "Default"
         # self.add_initial = False # False: add initial pose, True: don't add initial pose
-        # self.pausemode = True  # False: hard stops, True: blended in interpolated data
-        # self.interpolation_mode = 'cubic'
+        self.pausemode = True  # False: hard stops, True: blended in interpolated data
+        self.interpolation_mode = 'linear'
+        self.idle_time = rospy.get_time()
+        self.then = rospy.get_time()
 
         # # self.write_to_file = True
         self.loglog = True
-
         self.action = []
-        self.slope_val = 0.8
+        self.slope_val = 1.0
 
         threading.Thread.__init__(self)
-        self.sleeper = rospy.Rate(50)
+        self.sleeper = rospy.Rate(20)
 
     # Service methods
     def relax_servos(self):
@@ -120,7 +121,7 @@ class JeevesHeadController(threading.Thread):
             self.pan_set_slope_cw(slope)
 
         except Exception as se:
-            rospy.logerr("Something went wrong calling slope service:", se)
+            rospy.logerr("Something went wrong calling slope service: {}".format(se))
             pass
 
     # Callback methods
@@ -153,7 +154,8 @@ class JeevesHeadController(threading.Thread):
                     rospy.loginfo(">>>>> PAN (%s)" % joint_pos)
 
         if all(self.init_ready):
-            rospy.loginfo("OK! I'm ready")
+            if not self.ready:
+                rospy.loginfo("OK! I'm ready")
             self.ready = True
 
     def gesture_callback(self, gesture):
@@ -165,18 +167,18 @@ class JeevesHeadController(threading.Thread):
         # Reload the motion file if new gesture is given
         rospy.loginfo("[gesture_callback] Got new gesture: %s" % gesture.data)
         #print "Greeting.data: %s" % gesture.data
-        # get = self.rebel_parser(gesture.data)
-        # word = get.word
-        # sequence = get.sequence
+        get = self.rebel_parser(gesture.data)
+        word = get.word
+        sequence = get.sequence
 
         # if self.use_midi:
         #     rospy.loginfo("%s med_file_path: %s" % (caller, self.med_file_path))
         #     mididata = self.midi_motion(self.med_file_path)
 
 
-        # if word:
-        #     self.poseTitle = gesture.data
-        #     seq = ast.literal_eval(sequence)
+        if word:
+            self.poseTitle = gesture.data
+            seq = ast.literal_eval(sequence)
 
         #     if self.use_midi:
         #         rospy.loginfo("%s Applying MIDI data from: ... %s" % (caller, self.midi_title))
@@ -186,12 +188,22 @@ class JeevesHeadController(threading.Thread):
         #         rospy.loginfo("%s updated timing 'Time': %s" % (caller, seq['Time']))
         #     rospy.loginfo("%s response:\n%s\n%s" % (caller, word, seq))
 
-        #     rospy.loginfo("[gesture_callback] response:\n%s\n%s" % (word, seq))
-        #     self.poses = seq
-        #     self.ready = True
-        #     self.after_motion = False
-        #     self.gesture_command = True
-        #     rospy.loginfo("OK! I'm ready to execute: {}".format(self.poseTitle))
+            rospy.loginfo("[gesture_callback] response:\n%s\n%s" % (word, seq))
+            self.poses = seq
+            self.ready = True
+            self.after_motion = False
+            self.gesture_command = True
+            rospy.loginfo("OK! I'm ready to execute: {}".format(self.poseTitle))
+
+    def resetPose(self):
+        rospy.loginfo("***ResetPoses***")
+        # self.set_speed('slow')
+        wait_time = abs(np.random.normal(loc=2.0, scale=1))
+        while rospy.get_time() - self.idle_time < wait_time:
+            continue
+        for joint, pub in self.joints.items():
+            # pub.publish(Float64(self.joint_pos[joint]))
+            pub.publish(Float64(0.0))
 
     def pospos(self, x):
         # Convert joint_pos from -2.6 - 2.6 to 0 - 1020
@@ -212,12 +224,11 @@ class JeevesHeadController(threading.Thread):
         self.enable_servos()
         self.set_slopes()
 
-
-        l = len(self.pages)
-
         flag = False
         n = 0
 
+        new_poses = {}
+        posex_length = 0
 
         while not rospy.is_shutdown():
 
@@ -242,14 +253,18 @@ class JeevesHeadController(threading.Thread):
             #     rospy.loginfo("INITIAL JOINT POSE: %s" % self.joint_pos)
             #     xposes.addInitialPose(self.joint_pos)
             #     self.add_initial = True
-            # poses = xposes.getPoses()   # Load poses
-            # timing = xposes.getTiming()
 
             # new_poses = {}
             # posex_length = 0
 
-            if self.ready:
-                rospy.loginfo("Going to do %s!!!" % xposes.getTitle())
+            if self.ready and self.poses:
+                xposes = JeevesHeadPoses()
+                xposes.setTitle(self.poseTitle)
+                xposes.loadPoses(self.poses)
+                poses = xposes.getPoses()   # Load poses
+                timing = xposes.getTiming()
+
+                # rospy.loginfo("Going to do %s!!!" % xposes.getTitle())
 
                 # if self.write_to_file:
                 #     try:
@@ -406,6 +421,7 @@ class JeevesHeadController(threading.Thread):
                     ###  Publish joint data for each joint <MAIN EVENT> ###
                     for joint, pub in self.joints.iteritems():
                         pos = new_poses[joint][i]
+                        print("Publishing: ", pos)
                         pub.publish(Float64(pos))
 
                     d = 0.02
@@ -422,10 +438,25 @@ class JeevesHeadController(threading.Thread):
                         pass
                     self.then = rospy.get_time()
 
+                self.resetPose()
+                # self.relax_servos()
+                then = rospy.get_time()
+                while rospy.get_time() - then < 1.5:
+                    pass
+                # self.enable_servos()
+                self.set_slopes()
 
+
+            # Reset things
+            posex_length = 0
+            # self.ready = False
+            self.idle_time = rospy.get_time()  # Reset idle timer
+            self.pages = None
+            self.poses = None
+            new_poses = {}
             self.sleeper.sleep()
-            rospy.signal_shutdown("Only running once.")
-            return 0
+            # rospy.signal_shutdown("Only running once.")
+            # return 0
 
     def chooseInterpolate(self, posex, timing, interp='cubic'):
         if interp == 'cubic' or interp == 'lagrange' or interp=='linear':
