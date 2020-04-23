@@ -72,11 +72,13 @@ class JeevesHeadController(threading.Thread):
 
         self.joints = {'TILT_LEFT': self.tilt_left_pub,
             'TILT_RIGHT': self.tilt_right_pub,
-            'PAN': self.pan_pub}
+            'PAN': self.pan_pub,
+            'FACE_CMD': self.face_pub}
 
         self.joint_pos = {'TILT_LEFT': 512,
             'TILT_LEFT': 512,
-            'PAN': 512}
+            'PAN': 512,
+            'FACE_CMD': ''}
 
         self.init_ready = [False, False, False]
         self.ready = False
@@ -203,7 +205,11 @@ class JeevesHeadController(threading.Thread):
             continue
         for joint, pub in self.joints.items():
             # pub.publish(Float64(self.joint_pos[joint]))
-            pub.publish(Float64(0.0))
+            if joint != 'FACE_CMD':
+                pub.publish(Float64(0.0))
+            else:
+                pub.publish(String(np.random.choice(['w','q','e'])))
+
 
     def pospos(self, x):
         # Convert joint_pos from -2.6 - 2.6 to 0 - 1020
@@ -366,8 +372,11 @@ class JeevesHeadController(threading.Thread):
 
                     # Choose interpolation method: linear, cubic, or lagrange
                     # So far lagrange has a lot of issues (movements too big)
-
-                    fposex = self.chooseInterpolate(posex, timing, self.interpolation_mode)
+                    if joint == 'FACE_CMD':
+                        fposex = self.face_cmd_interpolate(posex, timing, self.interpolation_mode)
+                        rospy.loginfo("POSEX: {}".format(fposex))
+                    else:
+                        fposex = self.chooseInterpolate(posex, timing, self.interpolation_mode)
                     # rospy.loginfo("lagrange fPosex[%s]: %s" % (joint, fposex))
 
                     # if self.write_to_file:
@@ -382,17 +391,17 @@ class JeevesHeadController(threading.Thread):
                     #     timer_fh.write("Pausemode: %s\n" % self.pausemode)
                     #     timer_fh.write("Adjusted timing:\n%s" % timing['Timer'])
 
-                    if self.loglog:
-                        rospy.loginfo("LOGLOG: Interpolation mode: %s" % self.interpolation_mode)
-                        rospy.loginfo("LOGLOG: Pausemode: %s" % self.pausemode)
-                        if self.pausemode:
-                            rospy.loginfo("LOGLOG: Pausemode adjusted data: %s" % posex)
-                            rospy.loginfo("LOGLOG: Pausemode adjusted timer: %s" % timing['Timer'])
-                        else:
-                            rospy.loginfo("LOGLOG: data: %s" % posex)
-                            rospy.loginfo("LOGLOG: timer: %s" % timing['Timer'])
-                        rospy.loginfo("LOGLOG: Interpolated data: %s" % fposex)
-                        rospy.loginfo("LOGLOG: Interpolated data (abtx): %s" % [self.pospos(x) for x in fposex])
+                        if self.loglog:
+                            rospy.loginfo("LOGLOG: Interpolation mode: %s" % self.interpolation_mode)
+                            rospy.loginfo("LOGLOG: Pausemode: %s" % self.pausemode)
+                            if self.pausemode:
+                                rospy.loginfo("LOGLOG: Pausemode adjusted data: %s" % posex)
+                                rospy.loginfo("LOGLOG: Pausemode adjusted timer: %s" % timing['Timer'])
+                            else:
+                                rospy.loginfo("LOGLOG: data: %s" % posex)
+                                rospy.loginfo("LOGLOG: timer: %s" % timing['Timer'])
+                            rospy.loginfo("LOGLOG: Interpolated data: %s" % fposex)
+                            rospy.loginfo("LOGLOG: Interpolated data (abtx): %s" % [self.pospos(x) for x in fposex])
 
                     # new_poses is the final interpolated data
                     new_poses[joint] = fposex
@@ -422,7 +431,14 @@ class JeevesHeadController(threading.Thread):
                     for joint, pub in self.joints.iteritems():
                         pos = new_poses[joint][i]
                         print("Publishing: ", pos)
-                        pub.publish(Float64(pos))
+                        # pub.publish(Float64(pos))
+
+                        if joint != 'FACE_CMD':
+                            pos = Float64(pos)
+                        else:
+                            pos = String(pos)
+
+                        pub.publish(pos)
 
                     d = 0.02
 
@@ -548,6 +564,27 @@ class JeevesHeadController(threading.Thread):
     def mapp(self, x):
         decimal.getcontext().prec=7
         return (x - 512.0)/512.0 * 2.6
+
+    def face_cmd_interpolate(self, posex, timing, interp):
+        l = len(posex)
+        x = np.linspace(0, l-1, num=l, endpoint=True)
+        y = np.ones((l,))
+        # f = interp1d(x,y)
+        if interp == 'cubic' or interp == 'linear':
+            f2 = interp1d(x,y, kind=interp)
+        elif interp == 'lagrange':
+            f2 = lagrange(x, y)
+        else:
+            raise ValueError('Invalid interpolation type!')
+        steps = 0
+        for t in timing['Timer']:
+            steps += int(t * 8/50.0)
+
+        xnew = np.linspace(0, l-1, num=steps, endpoint=True)
+
+        fx = [posex[-1] for f in f2(xnew)]
+
+        return fx
 
 def main(args):
     rospy.init_node('jeeveshead_controller_node', anonymous=True)

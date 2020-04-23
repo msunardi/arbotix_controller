@@ -343,6 +343,7 @@ class JeevesHeadPoses(BasePoses):
         self.body = {'TILT_RIGHT': None,
                     'TILT_LEFT': None,
                     'PAN': None,
+                    'FACE_CMD': None
                      }
 
         super(BasePoses, self).__init__()
