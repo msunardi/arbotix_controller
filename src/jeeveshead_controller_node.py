@@ -33,7 +33,7 @@ class JeevesHeadController(threading.Thread):
         self.tilt_right_pub = rospy.Publisher('/tilt_right/command', Float64, queue_size=10)
         self.tilt_left_pub = rospy.Publisher('/tilt_left/command', Float64, queue_size=10)
         self.pan_pub = rospy.Publisher('/pan/command', Float64, queue_size=10)
-        self.face_pub = rospy.Publisher('/face', String, queue_size=10, latch=True)
+        self.face_pub = rospy.Publisher('/face', String, queue_size=10)
 
         # Subscribers
         # Arbotix joint states
@@ -97,7 +97,7 @@ class JeevesHeadController(threading.Thread):
         self.slope_val = 1.0
 
         threading.Thread.__init__(self)
-        self.sleeper = rospy.Rate(20)
+        self.sleeper = rospy.Rate(10)
 
     # Service methods
     def relax_servos(self):
@@ -208,7 +208,9 @@ class JeevesHeadController(threading.Thread):
             if joint != 'FACE_CMD':
                 pub.publish(Float64(0.0))
             else:
+                # HACK! shouldn't be allowed to give direct commands like these
                 pub.publish(String(np.random.choice(['w','q','e'])))
+                pub.publish(String('3:3'))
 
 
     def pospos(self, x):
@@ -582,7 +584,9 @@ class JeevesHeadController(threading.Thread):
 
         xnew = np.linspace(0, l-1, num=steps, endpoint=True)
 
-        fx = [posex[-1] for f in f2(xnew)]
+        # fx = [posex[-1] for f in f2(xnew)]
+        rat = steps // l + 1  # "upsample" commands to number of steps or more
+        fx = np.array(posex).repeat(rat, axis=0)[:steps]  # But only collect up to 'steps'
 
         return fx
 
