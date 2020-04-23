@@ -2,9 +2,9 @@ port: /dev/ttyUSB0
 read_rate: 15
 write_rate: 25
 joints: {
-    tilt_right: {id: 1, invert: false, neutral: 512, max_speed: 200},
-    tilt_left: {id: 2, max_speed: 200},
-    pan: {id: 3, neutral: 512, max_speed: 200}
+    tilt_right: {id: 1, invert: false, speed: 50, neutral: 512, max_speed: 200},
+    tilt_left: {id: 2, speed: 50, max_speed: 200},
+    pan: {id: 3, neutral: 512, speed: 50, max_speed: 200}
 }
 controllers: {
     head_controller: {
